@@ -119,6 +119,7 @@ func main() {
 
 	// On failure Cobra prints the usage message and error string, so we only
 	// need to exit with a non-0 status
+	// 到目前位置没有 mainCmd 只读入了 peer，并没有读取参数
 	if mainCmd.Execute() != nil {
 		os.Exit(1)
 	}
