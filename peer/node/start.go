@@ -79,7 +79,6 @@ func serve(args []string) error {
 		viper.Set("peer.validator.enabled", "true")
 		viper.Set("peer.validator.consensus", "noops")
 		viper.Set("chaincode.mode", chaincode.DevModeUserRunsChaincode)
-
 	}
 
 	if err := peer.CacheConfiguration(); err != nil {

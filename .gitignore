@@ -1,3 +1,4 @@
+.vscode/
 # Local build binaries
 node-cli/node-cli
 *.pyc
