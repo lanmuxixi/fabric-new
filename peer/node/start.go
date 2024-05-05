@@ -91,6 +91,7 @@ func serve(args []string) error {
 		return err
 	}
 
+	// listenAddr = "0.0.0.0:7051"
 	listenAddr := viper.GetString("peer.listenAddress")
 
 	if "" == listenAddr {
@@ -98,6 +99,7 @@ func serve(args []string) error {
 		listenAddr = peerEndpoint.Address
 	}
 
+	// tcp 监听
 	lis, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		grpclog.Fatalf("Failed to listen: %v", err)
@@ -119,6 +121,7 @@ func serve(args []string) error {
 		logger.Infof("Privacy enabled status: false")
 	}
 
+	// 启动 rocksdb
 	db.Start()
 
 	var opts []grpc.ServerOption
@@ -132,6 +135,7 @@ func serve(args []string) error {
 		opts = []grpc.ServerOption{grpc.Creds(creds)}
 	}
 
+	// 创建 grpc 服务
 	grpcServer := grpc.NewServer(opts...)
 
 	secHelper, err := getSecHelper()
@@ -147,6 +151,7 @@ func serve(args []string) error {
 
 	var peerServer *peer.Impl
 
+	// 创建 peer
 	// Create the peerServer
 	if peer.ValidatorEnabled() {
 		logger.Debug("Running as validating peer - making genesis block if needed")
@@ -156,7 +161,7 @@ func serve(args []string) error {
 		}
 		logger.Debugf("Running as validating peer - installing consensus %s",
 			viper.GetString("peer.validator.consensus"))
-
+		// Engine 里面包括了 pbft 的组件
 		peerServer, err = peer.NewPeerWithEngine(secHelperFunc, helper.GetEngine)
 	} else {
 		logger.Debug("Running as non-validating peer")

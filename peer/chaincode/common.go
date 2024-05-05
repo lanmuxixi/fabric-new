@@ -104,6 +104,11 @@ func getChaincodeSpecification(cmd *cobra.Command) (*pb.ChaincodeSpec, error) {
 	return spec, nil
 }
 
+// chaincodeInvokeOrQuery 调用或查询链码。如果成功，则
+// INVOKE 形式在 STDOUT 上打印事务 ID，而 QUERY 形式在 STDOUT 上打印查询结果。
+// 命令行标志 (-r, --raw) 决定查询结果是以原始字节还是可打印字符串输出。
+// 可打印形式可选择地 (-x, --hex) 是查询响应的十六进制表示。
+// 如果查询响应为 NIL，则不输出任何内容。
 // chaincodeInvokeOrQuery invokes or queries the chaincode. If successful, the
 // INVOKE form prints the transaction ID on STDOUT, and the QUERY form prints
 // the query result on STDOUT. A command-line flag (-r, --raw) determines
@@ -126,7 +131,7 @@ func chaincodeInvokeOrQuery(cmd *cobra.Command, args []string, invoke bool) (err
 	if customIDGenAlg != common.UndefinedParamValue {
 		invocation.IdGenerationAlg = customIDGenAlg
 	}
-
+	// 前面都是预处理，到这里开始 Invoke 交易
 	var resp *pb.Response
 	if invoke {
 		resp, err = devopsClient.Invoke(context.Background(), invocation)
