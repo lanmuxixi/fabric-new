@@ -15,8 +15,8 @@ services:
   vp0:
     extends:
       file: peer.yml
-      # service: vp
-      service: vp_debug
+      service: vp
+      # service: vp_debug
     hostname: vp0
     environment:
       - CORE_PEER_ID=vp0
@@ -24,15 +24,14 @@ services:
       # - "40000"
     ports:
       - "7050:7050"
-      - "8080:8080"
-      - "40000:40000"
       #- "7051:7051"
 
   # validating node
   vp1:
     extends:
       file: peer.yml
-      service: vp
+      # service: vp
+      service: vp_debug
     hostname: vp1
     environment:
       - CORE_PEER_ID=vp1
