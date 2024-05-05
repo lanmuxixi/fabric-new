@@ -262,6 +262,7 @@ func NewPeerWithEngine(secHelperFunc func() crypto.Peer, engFactory EngineFactor
 	}
 	peer.ledgerWrapper = &ledgerWrapper{ledger: ledgerPtr}
 
+	// engine 里面包括了事件处理的组件
 	peer.engine, err = engFactory(peer)
 	if err != nil {
 		return nil, err

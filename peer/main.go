@@ -18,16 +18,14 @@ package main
 
 import (
 	"fmt"
+	"github.com/op/go-logging"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
-
-	"github.com/op/go-logging"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-
-	_ "net/http/pprof"
 
 	"github.com/hyperledger/fabric/core"
 	"github.com/hyperledger/fabric/core/crypto"
@@ -67,6 +65,7 @@ var mainCmd = &cobra.Command{
 var versionFlag bool
 
 func main() {
+
 	// For environment variables.
 	viper.SetEnvPrefix(cmdRoot)
 	viper.AutomaticEnv()
@@ -119,7 +118,8 @@ func main() {
 
 	// On failure Cobra prints the usage message and error string, so we only
 	// need to exit with a non-0 status
-	// 到目前位置没有 mainCmd 只读入了 peer，并没有读取参数
+
+	// 到目前为止没有 mainCmd 只读入了 peer，并没有读取参数
 	if mainCmd.Execute() != nil {
 		os.Exit(1)
 	}

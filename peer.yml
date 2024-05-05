@@ -76,9 +76,13 @@ services:
       - "7059"  # tlsCAA
     volumes: # docker.sock is mapped as the default CORE_VM_ENDPOINT
       - /var/run/docker.sock:/var/run/docker.sock
-    # command:   # this repeats the default cmd to make sure
-    command: peer node start  # this repeats the default cmd to make sure
-  # command: sh -c "sleep 5; peer node start"  # peer node should have booting delay with CA
+    # 容器启动后附加调试或者执行调试
+    # command: peer node start  # this repeats the default cmd to make sure
+    
+    # 容器启动时调试 peer node start
+    command: dlv --listen=:40000 --headless=true --api-version=2 --accept-multiclient exec /go/bin/peer -- node start  # this repeats the default cmd to make sure
+    
+    # command: sh -c "sleep 5; peer node start"  # peer node should have booting delay with CA
 
   vp_sec: # vp node needing membersrvc suppot
     extends:

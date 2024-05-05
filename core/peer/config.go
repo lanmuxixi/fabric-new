@@ -64,7 +64,6 @@ var securityEnabled bool
 // computed constants as package variables. Routines which were previously
 // global have been embedded here to preserve the original abstraction.
 func CacheConfiguration() (err error) {
-
 	// getLocalAddress returns the address:port the local peer is operating on.  Affected by env:peer.addressAutoDetect
 	getLocalAddress := func() (peerAddress string, err error) {
 		if viper.GetBool("peer.addressAutoDetect") {
