@@ -226,7 +226,8 @@ func (h *Helper) CommitTxBatch(id interface{}, metadata []byte) (*pb.Block, erro
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get the block at the head of the chain: %v", err)
 	}
-
+	block_hash, err := block.GetHash()
+	logger.Infof("BlockHash is %x. Block size is %d bytes", block_hash, block.GetSize())
 	logger.Debugf("Committed block with %d transactions, intended to include %d", len(block.Transactions), len(h.curBatch))
 
 	return block, nil

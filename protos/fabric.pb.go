@@ -263,6 +263,31 @@ type Block struct {
 	NonHashData       *NonHashData               `protobuf:"bytes,7,opt,name=nonHashData" json:"nonHashData,omitempty"`
 }
 
+func (m *Block) GetSize() int {
+	ans := 16 // Version + Timestamp
+	ans += len(m.StateHash) + len(m.PreviousBlockHash) + len(m.ConsensusMetadata)
+	for _, t := range m.Transactions {
+		ans += 20 // 4 + 12 + 4
+		ans += len(t.ChaincodeID)
+		ans += len(t.Payload)
+		ans += len(t.Metadata)
+		ans += len(t.Txid)
+		ans += len(t.ConfidentialityProtocolVersion)
+		ans += len(t.Nonce)
+		ans += len(t.ToValidators)
+		ans += len(t.Cert)
+		ans += len(t.Signature)
+	}
+	ans += 12 // NonHashData 的 TimeStamp
+	for _, e := range m.NonHashData.ChaincodeEvents {
+		ans += len(e.ChaincodeID)
+		ans += len(e.TxID)
+		ans += len(e.EventName)
+		ans += len(e.Payload)
+	}
+	return ans
+}
+
 func (m *Block) Reset()                    { *m = Block{} }
 func (m *Block) String() string            { return proto.CompactTextString(m) }
 func (*Block) ProtoMessage()               {}

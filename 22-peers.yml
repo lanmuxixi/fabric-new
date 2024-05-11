@@ -1,0 +1,342 @@
+version: '2'
+        
+
+# 5 6 8 9 11 12 14 15 16 为bz
+services:
+# validating node as the root
+# vp0 will also be used for client interactive operations
+# If you want to run fabric command on the host, then map 7051:7051 to host
+# port, or use like `CORE_PEER_ADDRESS=172.17.0.2:7051` to specify peer addr.
+  vp0:
+    extends:
+      file: peer.yml
+      # service: vp
+      service: vp
+    hostname: vp0
+    environment:
+      - CORE_PEER_ID=vp0
+
+      # 恶意节点
+      # - CORE_PBFT_GENERAL_BYZANTINE=true
+
+    ports:
+      - "7050:7050"
+      # - "7051:7051" 
+
+  # validating node
+  vp1:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp1
+    environment:
+      - CORE_PEER_ID=vp1
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp2:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp2
+    environment:
+      - CORE_PEER_ID=vp2
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp3:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp3
+    environment:
+      - CORE_PEER_ID=vp3
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp4:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp4
+    environment:
+      - CORE_PEER_ID=vp4
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp5:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp5
+    environment:
+      - CORE_PEER_ID=vp5
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+      # - CORE_PBFT_GENERAL_BYZANTINE=true
+    links:
+      - vp0
+
+  # validating node
+  vp6:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp6
+    environment:
+      - CORE_PEER_ID=vp6
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+      # - CORE_PBFT_GENERAL_BYZANTINE=true
+    links:
+      - vp0
+
+  # validating node
+  vp7:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp7
+    environment:
+      - CORE_PEER_ID=vp7
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp8:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp8
+    environment:
+      - CORE_PEER_ID=vp8
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+      # - CORE_PBFT_GENERAL_BYZANTINE=true
+    links:
+      - vp0
+
+  # validating node
+  vp9:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp9
+    environment:
+      - CORE_PEER_ID=vp9
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+      # - CORE_PBFT_GENERAL_BYZANTINE=true
+    links:
+      - vp0
+
+  # validating node
+  vp10:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp10
+    environment:
+      - CORE_PEER_ID=vp10
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp11:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp11
+    environment:
+      - CORE_PEER_ID=vp11
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+      # - CORE_PBFT_GENERAL_BYZANTINE=true
+    links:
+      - vp0
+
+  # validating node
+  vp12:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp12
+    environment:
+      - CORE_PEER_ID=vp12
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+      # - CORE_PBFT_GENERAL_BYZANTINE=true
+    links:
+      - vp0
+
+  # validating node
+  vp13:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp13
+    environment:
+      - CORE_PEER_ID=vp13
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp14:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp14
+    environment:
+      - CORE_PEER_ID=vp14
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+      # - CORE_PBFT_GENERAL_BYZANTINE=true
+    links:
+      - vp0
+
+  # validating node
+  vp15:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp15
+    environment:
+      - CORE_PEER_ID=vp15
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+      # - CORE_PBFT_GENERAL_BYZANTINE=true
+    links:
+      - vp0
+
+  # validating node
+  vp16:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp16
+    environment:
+      - CORE_PEER_ID=vp16
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+      # - CORE_PBFT_GENERAL_BYZANTINE=true
+    links:
+      - vp0
+
+  # validating node
+  vp17:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp17
+    environment:
+      - CORE_PEER_ID=vp17
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp18:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp18
+    environment:
+      - CORE_PEER_ID=vp18
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp19:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp19
+    environment:
+      - CORE_PEER_ID=vp19
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+  vp20:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp20
+    environment:
+      - CORE_PEER_ID=vp20
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+  vp21:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp21
+    environment:
+      - CORE_PEER_ID=vp21
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+
+  nvp0:
+    extends:
+      file: peer.yml
+      service: vp
+    hostname: nvp0
+    environment:
+      - CORE_PEER_VALIDATOR_ENABLED=false
+      - CORE_PEER_ID=nvp0
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+    command: sh -c "sleep 10; peer node start"
+
+  nvp1:
+    extends:
+      file: peer.yml
+      service: vp
+    hostname: nvp1
+    environment:
+      - CORE_PEER_VALIDATOR_ENABLED=false
+      - CORE_PEER_ID=nvp1
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+    command: sh -c "sleep 10; peer node start"
+
+  nvp2:
+    extends:
+      file: peer.yml
+      service: vp
+    hostname: nvp2
+    environment:
+      - CORE_PEER_VALIDATOR_ENABLED=false
+      - CORE_PEER_ID=nvp2
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+    command: sh -c "sleep 10; peer node start"

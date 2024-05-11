@@ -16,16 +16,25 @@ limitations under the License.
 
 package pbft
 
-import "container/list"
+import (
+	"container/list"
+	"errors"
+)
 
 type requestContainer struct {
 	key string
 	req *Request
 }
 
+type bzrequestContainer struct {
+	key  string
+	flag bool
+	req  *Request
+}
+
 type orderedRequests struct {
-	order    list.List
-	presence map[string]*list.Element
+	order    list.List                //双向链表
+	presence map[string]*list.Element //map方便查询
 }
 
 func (a *orderedRequests) Len() int {
@@ -44,9 +53,32 @@ func (a *orderedRequests) has(key string) bool {
 	return ok
 }
 
+func (a *orderedRequests) get(key string) (*Request, error) {
+	e, ok := a.presence[key]
+	if !ok {
+		return nil, errors.New("get value by key failed")
+	}
+	if val, ok := e.Value.(requestContainer); ok {
+		return val.req, nil
+	}
+	return nil, errors.New("trans type failed")
+}
+
+func (a *orderedRequests) get_e(key string) (*list.Element, error) {
+	e, ok := a.presence[key]
+	if !ok {
+		return nil, errors.New("get value by key failed")
+	}
+	return e, nil
+	//if val, ok := e.Value.(bzrequestContainer); ok {
+	//	return val, nil
+	//}
+	//return nil, errors.New("trans type failed")
+}
+
 func (a *orderedRequests) add(request *Request) {
-	rc := a.wrapRequest(request)
-	if !a.has(rc.key) {
+	rc := a.wrapRequest(request) //hash键值对化
+	if !a.has(rc.key) {          //根据hash判重
 		e := a.order.PushBack(rc)
 		a.presence[rc.key] = e
 	}
@@ -145,3 +177,78 @@ func (rs *requestStore) getNextNonPending(n int) (result []*Request) {
 
 	return result
 }
+
+//===================================================================
+//			FOR BYZANTINE
+//===================================================================
+
+type bzrequestStore struct {
+	outstandingRequests *orderedRequests
+	pendingRequests     *orderedRequests
+}
+
+func newBzRequestStore() *bzrequestStore {
+	rs := &bzrequestStore{
+		outstandingRequests: &orderedRequests{},
+		pendingRequests:     &orderedRequests{},
+	}
+	// initialize data structures
+	rs.outstandingRequests.empty()
+	rs.pendingRequests.empty()
+
+	return rs
+}
+
+func (rs *bzrequestStore) storeOutstanding(request *Request, domain string, _flag bool) {
+	//domain 做key
+	a := rs.outstandingRequests
+
+	rc := bzrequestContainer{
+		key:  domain,
+		req:  request,
+		flag: _flag,
+	}
+	if !a.has(rc.key) {
+		e := a.order.PushBack(rc)
+		a.presence[rc.key] = e
+	}
+}
+
+func (rs *bzrequestStore) storePending(request *Request, domain string, _flag bool) {
+	a := rs.pendingRequests
+	rc := bzrequestContainer{
+		key:  domain,
+		req:  request,
+		flag: _flag,
+	}
+	if !a.has(rc.key) {
+		e := a.order.PushBack(rc)
+		a.presence[rc.key] = e
+	}
+}
+
+func (rs *bzrequestStore) remove(request *Request, domain string) (outstanding, pending bool, _flag bool) {
+	o := rs.outstandingRequests
+	p := rs.pendingRequests
+
+	rc := bzrequestContainer{
+		key:  domain,
+		req:  request,
+		flag: _flag,
+	}
+	oe, outstanding := o.presence[rc.key]
+	if outstanding {
+		o.order.Remove(oe)
+		delete(o.presence, rc.key)
+	}
+	pe, pending := p.presence[rc.key]
+	if pending {
+		p.order.Remove(pe)
+		delete(p.presence, rc.key)
+	}
+	return
+}
+
+//===================================================================
+//			FOR BYZANTINE
+//===================================================================
