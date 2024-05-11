@@ -16,7 +16,7 @@ services:
     extends:
       file: peer.yml
       # service: vp
-      service: vp
+      service: vp_debug
     hostname: vp0
     environment:
       - CORE_PEER_ID=vp0
@@ -47,12 +47,12 @@ services:
   vp2:
     extends:
       file: peer.yml
-      service: vp_debug
+      service: vp
     hostname: vp2
     environment:
       - CORE_PEER_ID=vp2
       - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
-      - CORE_PBFT_GENERAL_BYZANTINE=true
+      - CORE_PBFT_GENERAL_BYZANTINE=false
     links:
       - vp0
 
@@ -80,8 +80,3 @@ services:
     links:
       - vp0
     command: sh -c "sleep 10; peer node start"
-
-#networks:
-#  default:
-#    external:
-#      name: fabric_pbft

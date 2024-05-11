@@ -1,0 +1,44 @@
+package functions
+
+import (
+	"errors"
+	"fmt"
+	"github.com/hyperledger/fabric/examples/chaincode/go/chaincode_dns_reslover/myutils"
+	"strings"
+
+	"github.com/hyperledger/fabric/core/chaincode/shim"
+)
+
+// SimpleDomainDelete deletes the domain from bind DNS server
+func SimpleDomainDelete(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	if len(args) != 1 {
+		return nil, errors.New("incorrect number of arguments, Expecting 1 args")
+	}
+	result := true
+	domain := args[0]
+	isValidDomain := myutils.CheckValidDomain(domain)
+	if !isValidDomain {
+		return nil, errors.New("input is invalid domain")
+	}
+
+	// Get the resolver ip from blockchain
+	topLevelDomain, err := myutils.GetTopLevelDomain(domain)
+	if err != nil || len(topLevelDomain) == 0 {
+		return nil, errors.New("failed to get top level domain")
+	}
+
+	authorityServer, err := stub.GetState(topLevelDomain)
+	splits := strings.Split(string(authorityServer), ":")
+	if len(splits) != 2 {
+		return nil, fmt.Errorf("the state from chainblock of %s is error", topLevelDomain)
+	}
+	resolverIp := splits[0]
+	resolverPort := splits[1]
+
+	// Quest the dns record
+	result, err = myutils.SendRemoveName(topLevelDomain, domain, resolverIp, resolverPort)
+	if err != nil {
+		return nil, err
+	}
+	return myutils.BuildResponse(result, "", nil), nil
+}

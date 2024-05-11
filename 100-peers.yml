@@ -1,0 +1,1310 @@
+version: '2'
+        
+services:
+# validating node as the root
+# vp0 will also be used for client interactive operations
+# If you want to run fabric command on the host, then map 7051:7051 to host
+# port, or use like `CORE_PEER_ADDRESS=172.17.0.2:7051` to specify peer addr.
+  vp0:
+    extends:
+      file: peer.yml
+      # service: vp
+      service: vp_debug
+    hostname: vp0
+    environment:
+      - CORE_PEER_ID=vp0
+
+      # 恶意节点
+      # - CORE_PBFT_GENERAL_BYZANTINE=true
+
+    ports:
+      - "7050:7050"
+      # - "7051:7051" 
+
+  # validating node
+  vp1:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp1
+    environment:
+      - CORE_PEER_ID=vp1
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp2:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp2
+    environment:
+      - CORE_PEER_ID=vp2
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp3:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp3
+    environment:
+      - CORE_PEER_ID=vp3
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp4:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp4
+    environment:
+      - CORE_PEER_ID=vp4
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp5:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp5
+    environment:
+      - CORE_PEER_ID=vp5
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp6:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp6
+    environment:
+      - CORE_PEER_ID=vp6
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp7:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp7
+    environment:
+      - CORE_PEER_ID=vp7
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp8:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp8
+    environment:
+      - CORE_PEER_ID=vp8
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp9:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp9
+    environment:
+      - CORE_PEER_ID=vp9
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp10:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp10
+    environment:
+      - CORE_PEER_ID=vp10
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp11:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp11
+    environment:
+      - CORE_PEER_ID=vp11
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp12:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp12
+    environment:
+      - CORE_PEER_ID=vp12
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp13:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp13
+    environment:
+      - CORE_PEER_ID=vp13
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp14:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp14
+    environment:
+      - CORE_PEER_ID=vp14
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp15:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp15
+    environment:
+      - CORE_PEER_ID=vp15
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp16:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp16
+    environment:
+      - CORE_PEER_ID=vp16
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp17:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp17
+    environment:
+      - CORE_PEER_ID=vp17
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp18:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp18
+    environment:
+      - CORE_PEER_ID=vp18
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp19:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp19
+    environment:
+      - CORE_PEER_ID=vp19
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp20:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp20
+    environment:
+      - CORE_PEER_ID=vp20
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp21:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp21
+    environment:
+      - CORE_PEER_ID=vp21
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp22:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp22
+    environment:
+      - CORE_PEER_ID=vp22
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp23:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp23
+    environment:
+      - CORE_PEER_ID=vp23
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp24:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp24
+    environment:
+      - CORE_PEER_ID=vp24
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp25:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp25
+    environment:
+      - CORE_PEER_ID=vp25
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp26:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp26
+    environment:
+      - CORE_PEER_ID=vp26
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp27:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp27
+    environment:
+      - CORE_PEER_ID=vp27
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp28:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp28
+    environment:
+      - CORE_PEER_ID=vp28
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp29:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp29
+    environment:
+      - CORE_PEER_ID=vp29
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp30:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp30
+    environment:
+      - CORE_PEER_ID=vp30
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp31:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp31
+    environment:
+      - CORE_PEER_ID=vp31
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp32:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp32
+    environment:
+      - CORE_PEER_ID=vp32
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp33:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp33
+    environment:
+      - CORE_PEER_ID=vp33
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp34:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp34
+    environment:
+      - CORE_PEER_ID=vp34
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp35:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp35
+    environment:
+      - CORE_PEER_ID=vp35
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp36:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp36
+    environment:
+      - CORE_PEER_ID=vp36
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp37:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp37
+    environment:
+      - CORE_PEER_ID=vp37
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp38:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp38
+    environment:
+      - CORE_PEER_ID=vp38
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp39:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp39
+    environment:
+      - CORE_PEER_ID=vp39
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp40:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp40
+    environment:
+      - CORE_PEER_ID=vp40
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp41:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp41
+    environment:
+      - CORE_PEER_ID=vp41
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp42:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp42
+    environment:
+      - CORE_PEER_ID=vp42
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp43:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp43
+    environment:
+      - CORE_PEER_ID=vp43
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp44:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp44
+    environment:
+      - CORE_PEER_ID=vp44
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp45:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp45
+    environment:
+      - CORE_PEER_ID=vp45
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp46:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp46
+    environment:
+      - CORE_PEER_ID=vp46
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp47:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp47
+    environment:
+      - CORE_PEER_ID=vp47
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp48:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp48
+    environment:
+      - CORE_PEER_ID=vp48
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp49:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp49
+    environment:
+      - CORE_PEER_ID=vp49
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp50:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp50
+    environment:
+      - CORE_PEER_ID=vp50
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp51:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp51
+    environment:
+      - CORE_PEER_ID=vp51
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp52:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp52
+    environment:
+      - CORE_PEER_ID=vp52
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp53:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp53
+    environment:
+      - CORE_PEER_ID=vp53
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp54:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp54
+    environment:
+      - CORE_PEER_ID=vp54
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp55:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp55
+    environment:
+      - CORE_PEER_ID=vp55
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp56:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp56
+    environment:
+      - CORE_PEER_ID=vp56
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp57:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp57
+    environment:
+      - CORE_PEER_ID=vp57
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp58:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp58
+    environment:
+      - CORE_PEER_ID=vp58
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp59:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp59
+    environment:
+      - CORE_PEER_ID=vp59
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp60:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp60
+    environment:
+      - CORE_PEER_ID=vp60
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp61:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp61
+    environment:
+      - CORE_PEER_ID=vp61
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp62:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp62
+    environment:
+      - CORE_PEER_ID=vp62
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp63:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp63
+    environment:
+      - CORE_PEER_ID=vp63
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp64:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp64
+    environment:
+      - CORE_PEER_ID=vp64
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp65:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp65
+    environment:
+      - CORE_PEER_ID=vp65
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp66:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp66
+    environment:
+      - CORE_PEER_ID=vp66
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp67:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp67
+    environment:
+      - CORE_PEER_ID=vp67
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp68:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp68
+    environment:
+      - CORE_PEER_ID=vp68
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp69:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp69
+    environment:
+      - CORE_PEER_ID=vp69
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp70:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp70
+    environment:
+      - CORE_PEER_ID=vp70
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp71:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp71
+    environment:
+      - CORE_PEER_ID=vp71
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp72:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp72
+    environment:
+      - CORE_PEER_ID=vp72
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp73:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp73
+    environment:
+      - CORE_PEER_ID=vp73
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp74:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp74
+    environment:
+      - CORE_PEER_ID=vp74
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp75:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp75
+    environment:
+      - CORE_PEER_ID=vp75
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp76:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp76
+    environment:
+      - CORE_PEER_ID=vp76
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp77:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp77
+    environment:
+      - CORE_PEER_ID=vp77
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp78:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp78
+    environment:
+      - CORE_PEER_ID=vp78
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp79:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp79
+    environment:
+      - CORE_PEER_ID=vp79
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp80:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp80
+    environment:
+      - CORE_PEER_ID=vp80
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp81:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp81
+    environment:
+      - CORE_PEER_ID=vp81
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp82:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp82
+    environment:
+      - CORE_PEER_ID=vp82
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp83:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp83
+    environment:
+      - CORE_PEER_ID=vp83
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp84:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp84
+    environment:
+      - CORE_PEER_ID=vp84
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp85:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp85
+    environment:
+      - CORE_PEER_ID=vp85
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp86:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp86
+    environment:
+      - CORE_PEER_ID=vp86
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp87:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp87
+    environment:
+      - CORE_PEER_ID=vp87
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp88:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp88
+    environment:
+      - CORE_PEER_ID=vp88
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp89:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp89
+    environment:
+      - CORE_PEER_ID=vp89
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp90:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp90
+    environment:
+      - CORE_PEER_ID=vp90
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp91:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp91
+    environment:
+      - CORE_PEER_ID=vp91
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp92:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp92
+    environment:
+      - CORE_PEER_ID=vp92
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp93:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp93
+    environment:
+      - CORE_PEER_ID=vp93
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp94:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp94
+    environment:
+      - CORE_PEER_ID=vp94
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp95:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp95
+    environment:
+      - CORE_PEER_ID=vp95
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp96:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp96
+    environment:
+      - CORE_PEER_ID=vp96
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp97:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp97
+    environment:
+      - CORE_PEER_ID=vp97
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp98:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp98
+    environment:
+      - CORE_PEER_ID=vp98
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+
+  # validating node
+  vp99:
+    extends:
+      file: peer.yml
+      service: vp
+      # service: vp_debug
+    hostname: vp99
+    environment:
+      - CORE_PEER_ID=vp99
+      - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+    links:
+      - vp0
+

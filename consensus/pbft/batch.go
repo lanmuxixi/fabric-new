@@ -17,7 +17,18 @@ limitations under the License.
 package pbft
 
 import (
+	"bufio"
+	"crypto/ecdsa"
+	"crypto/rand"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/asn1"
+	"encoding/base64"
+	"encoding/pem"
 	"fmt"
+	"math/big"
+	"os"
+	"os/exec"
 	"time"
 
 	"github.com/hyperledger/fabric/consensus"
@@ -52,6 +63,8 @@ type obcBatch struct {
 	deduplicator *deduplicator
 
 	persistForward
+
+	bzreqStore *bzrequestStore
 }
 
 type batchMessage struct {
@@ -120,6 +133,8 @@ func newObcBatch(id uint64, config *viper.Viper, stack consensus.Stack) *obcBatc
 
 	op.reqStore = newRequestStore()
 
+	op.bzreqStore = newBzRequestStore()
+
 	op.deduplicator = newDeduplicator()
 
 	op.idleChan = make(chan struct{})
@@ -134,12 +149,35 @@ func (op *obcBatch) Close() {
 	op.pbft.close()
 }
 
-func (op *obcBatch) submitToLeader(req *Request) events.Event {
+func (op *obcBatch) submitToLeader(req *Request, domain string, username string) events.Event {
 	// Broadcast the request to the network, in case we're in the wrong view
+	//
 	op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
-	op.logAddTxFromRequest(req)
+	//op.logAddTxFromRequest(req)
 	op.reqStore.storeOutstanding(req)
 	op.startTimerIfOutstandingRequests()
+	if op.pbft.byzantine && username == TEST_INIT_JIM_NAME && op.bzreqStore.outstandingRequests.has(domain) {
+		//存在bzreqStore没有对应的req的情况：收到同伙作恶req，自己还没作恶
+		//_req, err := op.bzreqStore.outstandingRequests.get(domain)
+		e, err := op.bzreqStore.outstandingRequests.get_e(domain)
+		if err != nil {
+			logger.Errorf("failed get req by domain in bzreqstore")
+			return nil
+		}
+		val, ok := e.Value.(bzrequestContainer)
+		if ok {
+			_req := val.req
+			if val.flag {
+				//time.Sleep(5 * time.Millisecond)
+				op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: _req}})
+			}
+			//删了
+			op.bzreqStore.remove(_req, domain)
+			//op.logAddTxFromRequest(_req)
+			op.reqStore.storeOutstanding(_req)
+			op.startTimerIfOutstandingRequests()
+		}
+	}
 	if op.pbft.primary(op.pbft.view) == op.pbft.id && op.pbft.activeView {
 		return op.leaderProcReq(req)
 	}
@@ -262,13 +300,376 @@ func (op *obcBatch) txToReq(tx []byte) *Request {
 	return req
 }
 
+const (
+	TEST_INIT_JIM_NAME       = "JIM"
+	TEST_INIT_JIM_CERTFICATE = "-----BEGIN CERTIFICATE-----\nMIICCzCCAZGgAwIBAgIQAOpb0QCV/y0qdDtDHZEE7zAKBggqhkjOPQQDAjAXMRUw\nEwYDVQQDDAx3d3cudGFucy5mdW4wHhcNMjQwNTA4MDczODU2WhcNMjUwNTA4MDcz\nODU2WjAXMRUwEwYDVQQDDAx3d3cudGFucy5mdW4wdjAQBgcqhkjOPQIBBgUrgQQA\nIgNiAATCRfmQst/g22wAuSpRI9SOeeIiSHm6yFS/++d1FKdPC9I1VF5U2qjzvm5k\nJNUDBr7QSHqIcrtnuiZB+4xfVR5wIkir7mGx8kDq6yqUatZJhyI1mBvszrPGMWdL\n10LhxzijgaEwgZ4wHQYDVR0OBBYEFGEEKfoi8WRktgpNQ+5ZW1yWej0SMA4GA1Ud\nDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTADAQH/MDsGA1UdJQQ0MDIGCCsGAQUFBwMC\nBggrBgEFBQcDAQYIKwYBBQUHAwMGCCsGAQUFBwMEBggrBgEFBQcDCDAfBgNVHSME\nGDAWgBRhBCn6IvFkZLYKTUPuWVtclno9EjAKBggqhkjOPQQDAgNoADBlAjAcdM3n\nsALhS5ksNd9h/XVXNFrNcrR22OKq81YLh3OU2GdWzAzqt8XU6UJM/UpudWECMQDt\nU/WJhQvaVAMr8XUrxjKdUoNThMh3J/zEAp3CZyS2vFfJa8cJDzV8j3s8a//8eVk=\n-----END CERTIFICATE-----"
+	TEST_INIT_JIM_PRIVATEKEY = "-----BEGIN PRIVATE KEY-----\nMIG/AgEAMBAGByqGSM49AgEGBSuBBAAiBIGnMIGkAgEBBDDEzpnX/6bJHiAyX3YM\nsnjHAgflkru6J629fEXvXp9R3gvRoUyTVya275zul+u7irOgBwYFK4EEACKhZANi\nAATCRfmQst/g22wAuSpRI9SOeeIiSHm6yFS/++d1FKdPC9I1VF5U2qjzvm5kJNUD\nBr7QSHqIcrtnuiZB+4xfVR5wIkir7mGx8kDq6yqUatZJhyI1mBvszrPGMWdL10Lh\nxzg=\n-----END PRIVATE KEY-----"
+	TEST_INIT_JIM_IP         = "4.4.4.4"
+	//NONCE                    = "336710"
+	TARGET = "0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+)
+
+type ECDSASignature struct {
+	R, S *big.Int
+}
+
+type byzantineUser struct {
+	name       string
+	ip         string
+	cert       string
+	privateKey string
+	domain     string
+	domaintype string
+	ttl        string
+	signature  string
+}
+
+func newByzantineUser(_domain string, _domaintype string, _ttl string) *byzantineUser {
+	u := &byzantineUser{
+		name:       TEST_INIT_JIM_NAME,
+		ip:         TEST_INIT_JIM_IP,
+		cert:       TEST_INIT_JIM_CERTFICATE,
+		privateKey: TEST_INIT_JIM_PRIVATEKEY,
+		domain:     _domain,
+		domaintype: _domaintype,
+		ttl:        _ttl,
+		signature:  "",
+	}
+	return u
+}
+
+// Sign 签名
+func sign(certKey []byte, text string) string {
+
+	block, _ := pem.Decode(certKey)
+	if block == nil {
+		//fmt.Printf("ERROR: block of decoded private key is nil\n")
+		return ""
+	}
+
+	privKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		//fmt.Printf("ERROR: failed get ECDSA private key, %v\n", err)
+		return ""
+	}
+	ecPrivKey := privKey.(*ecdsa.PrivateKey)
+
+	hash := sha256.Sum256([]byte(text))
+	r, s, err := ecdsa.Sign(rand.Reader, ecPrivKey, hash[:])
+	if err != nil {
+		//fmt.Printf("ERROR: failed to get signature, %v\n", err)
+		return ""
+	}
+
+	// asn1 output DER format
+	signature, err := asn1.Marshal(ECDSASignature{
+		R: r,
+		S: s,
+	})
+	if err != nil {
+		//fmt.Printf("ERROR: asn1.Marshal ECDSA signature: %v\n", err)
+		return ""
+	}
+	//fmt.Printf("%s\n", base64.StdEncoding.EncodeToString(signature))
+	return base64.StdEncoding.EncodeToString(signature)
+
+}
+func recordDomain(domain string) bool {
+	file, err := os.OpenFile("./domain.txt", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+
+	if _, err := file.WriteString(domain + "\n"); err != nil {
+		return false
+	}
+	return true
+}
+
+func isRecord(targetDomain string) (bool, error) {
+	// 打开文件
+	file, err := os.Open("./domain.txt")
+	if err != nil {
+		fmt.Println("Error:", err)
+		return false, err
+	}
+	defer file.Close()
+
+	// 创建一个 Scanner 来逐行读取文件
+	scanner := bufio.NewScanner(file)
+
+	// 逐行检查域名是否存在
+	for scanner.Scan() {
+		// 获取当前行的域名
+		domain := scanner.Text()
+
+		// 判断目标域名是否存在于当前行
+		if domain == targetDomain {
+			return true, nil
+		}
+	}
+	return false, nil
+
+}
+
+func getStringArgs(args [][]byte) []string {
+	strargs := make([]string, 0, len(args))
+	for _, barg := range args {
+		strargs = append(strargs, string(barg))
+	}
+	return strargs
+}
+func getFuncAndParams(stringargs []string) (function string, params []string) {
+	function = ""
+	params = []string{}
+	if len(stringargs) >= 1 {
+		function = stringargs[0]
+		params = stringargs[1:]
+	}
+	return
+}
+
+func (op *obcBatch) dobyzantine(params []string) bool {
+	//判断是否要抢占这个domain
+	//TODO:根据某规则
+	//只有不是JIM且没抢占过才true
+	if params[4] != TEST_INIT_JIM_NAME {
+		//没抢占过
+		//ok, _ := isRecord(params[0])
+		//if ok {
+		//	//已经尝试抢占过
+		//	return false
+		//}
+		return true
+	}
+	//没抢占过，是jim
+	return false
+}
+func getHash(data []byte) *big.Int {
+	hash := sha256.Sum256(data)
+	hash256 := new(big.Int)
+	hash256.SetBytes(hash[:])
+
+	hash256str := fmt.Sprintf("%064x", hash256)
+	fmt.Printf("0x" + hash256str + "\n")
+	return hash256
+}
+func getNonce(s string, c chan uint32) {
+	target := new(big.Int)
+	target.SetString(TARGET, 16)
+	fmt.Printf("target = 0x" + fmt.Sprintf("%064x", target) + "\n")
+	var nonce uint32
+	nonce = 0
+	compact := fmt.Sprintf("%d%s", nonce, s)
+	for getHash([]byte(compact)).Cmp(target) > 0 {
+		nonce++
+		compact = fmt.Sprintf("%d%s", nonce, s)
+	}
+	c <- nonce
+
+}
+func makeTXbyPow(bzuser *byzantineUser, c chan uint32) {
+	//Args = ["domain", "ip", "type", "ttl", "username", "signature", "nonce", "target"]
+	nonce := <-c
+	cmd := "peer"
+	zzm := viper.GetString("dns.chaincodeid")
+	function := "TopLevelUpdate"
+
+	args := []string{
+		"chaincode",
+		"invoke",
+		"-n",
+		zzm,
+		"-c",
+		fmt.Sprintf("{\"Function\": \"%s\", \"Args\": [\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%d\", \"%s\"]}", function, bzuser.domain, bzuser.ip, bzuser.domaintype, bzuser.ttl, bzuser.name, bzuser.signature, nonce, TARGET),
+	}
+	fmt.Println("=====================================================================")
+	fmt.Println("抢注命令：", cmd, args)
+	fmt.Println("=====================================================================")
+
+	command := exec.Command(cmd, args...)
+
+	output, err := command.CombinedOutput()
+	if err != nil {
+		fmt.Println("=====================================================================")
+		fmt.Println("抢注命令执行失败:", err)
+		fmt.Println("=====================================================================")
+
+		return
+	}
+	fmt.Println("=====================================================================")
+	fmt.Println("抢注命令执行成功:", string(output))
+	//if recordDomain(bzuser.domain) {
+	//	fmt.Println("已记录")
+	//} else {
+	//	fmt.Println("记录失败")
+	//}
+	fmt.Println("=====================================================================")
+}
+
+func makeTXnoPow(bzuser *byzantineUser) {
+	cmd := "peer"
+	zzm := viper.GetString("dns.chaincodeid")
+	function := "TopLevelUpdate"
+
+	args := []string{
+		"chaincode",
+		"invoke",
+		"-n",
+		zzm,
+		"-c",
+		fmt.Sprintf("{\"Function\": \"%s\", \"Args\": [\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\"]}", function, bzuser.domain, bzuser.ip, bzuser.domaintype, bzuser.ttl, bzuser.name, bzuser.signature),
+	}
+	//fmt.Println("=====================================================================")
+	//fmt.Println("抢注命令：", cmd, args)
+	//fmt.Println("=====================================================================")
+	exec.Command(cmd, args...)
+	command := exec.Command(cmd, args...)
+
+	output, err := command.CombinedOutput()
+	if err != nil {
+		fmt.Println("=====================================================================")
+		fmt.Println("抢注命令执行失败:", err)
+		fmt.Println("=====================================================================")
+
+		return
+	}
+	fmt.Println("=====================================================================")
+	fmt.Println("抢注命令执行成功:", string(output))
+	recordDomain(bzuser.domain)
+	if recordDomain(bzuser.domain) {
+		fmt.Println("已记录")
+	} else {
+		fmt.Println("记录失败")
+	}
+	fmt.Println("=====================================================================")
+}
+
+//func (op *obcBatch) normalProcReq(ocMsg *pb.Message) events.Event {
+//	req := op.txToReq(ocMsg.Payload)
+//	return op.submitToLeader(req, "", "")
+//}
+
+func (op *obcBatch) tryByzantineForCTX(req *Request) events.Event {
+	//只可能是从nvp或本地来的
+	var tx pb.Transaction
+	if err := proto.Unmarshal(req.Payload, &tx); err != nil {
+		return nil
+	}
+	if tx.Type == pb.Transaction_CHAINCODE_INVOKE {
+		ccis := &pb.ChaincodeInvocationSpec{}
+		err := proto.Unmarshal(tx.Payload, ccis)
+		if err != nil {
+			return nil
+		}
+		ctormsg := ccis.GetChaincodeSpec().GetCtorMsg()
+		stringargs := getStringArgs(ctormsg.Args)
+		function, params := getFuncAndParams(stringargs)
+		if function == "TopLevelUpdate" {
+			//Args = ["domain", "ip", "type", "ttl", "username", "signature", "nonce", "target"]
+			//domain := params[0]
+			//ip := params[1]
+			//recordtype := params[2]
+			//ttl := params[3]
+			//username := params[4]
+			//signature := params[5]
+			//nonce := params[6]
+			//target := params[7]
+			if op.dobyzantine(params) {
+				//不是JIM且没抢占过 tip:只能是nvp发来的
+				bzuser := newByzantineUser(params[0], params[2], params[3])
+				bzuser.signature = sign([]byte(bzuser.privateKey), bzuser.domain)
+				//op.logAddTxFromRequest(req)
+				op.bzreqStore.storeOutstanding(req, bzuser.domain, true) //先缓存
+				//byzantine for has pow
+				//var c chan uint32
+				//go getNonce(function, c)
+				//go makeTXbyPow(bzuser, c)
+				go makeTXnoPow(bzuser)
+				return nil
+			} else {
+				//不作恶
+				//只会是抢占过了或者JIM
+				if params[4] == TEST_INIT_JIM_NAME {
+					return op.submitToLeader(req, params[0], params[4])
+				}
+			}
+			//else domain不想要或已经抢占过了 冒充正常节点op.submitToLeader(req, "", "")
+		}
+	}
+	//冒充正常节点
+	return op.submitToLeader(req, "", "")
+}
+
+func (op *obcBatch) tryByzantineForCNS(req *Request) events.Event {
+	//FOR Message_CONSENSUS
+	var tx pb.Transaction
+	if err := proto.Unmarshal(req.Payload, &tx); err != nil {
+		return nil
+	}
+
+	if tx.Type == pb.Transaction_CHAINCODE_INVOKE {
+		ccis := &pb.ChaincodeInvocationSpec{}
+		err := proto.Unmarshal(tx.Payload, ccis)
+		if err != nil {
+			return nil
+		}
+		ctormsg := ccis.GetChaincodeSpec().GetCtorMsg()
+		stringargs := getStringArgs(ctormsg.Args)
+		function, params := getFuncAndParams(stringargs)
+		if function == "TopLevelUpdate" {
+			//Args = ["domain", "ip", "type", "ttl", "username", "signature", "nonce", "target"]
+			//domain := params[0]
+			//ip := params[1]
+			//recordtype := params[2]
+			//ttl := params[3]
+			//username := params[4]
+			//signature := params[5]
+			//nonce := params[6]
+			//target := params[7]
+			if op.dobyzantine(params) {
+				//不是jim且没抢占过
+				bzuser := newByzantineUser(params[0], params[2], params[3])
+				bzuser.signature = sign([]byte(bzuser.privateKey), bzuser.domain)
+				//op.logAddTxFromRequest(req)
+				op.bzreqStore.storeOutstanding(req, bzuser.domain, false) //先缓存
+				//byzantine for has pow
+				//var c chan uint32
+				//go getNonce(function, c)
+				//go makeTXbyPow(bzuser, c)
+				go makeTXnoPow(bzuser)
+				//op.reqStore.storeOutstanding(req)
+				return nil
+			}
+			//else 是jim或抢占过了， 冒充正常节点
+		}
+	}
+
+	op.reqStore.storeOutstanding(req)
+	op.startTimerIfOutstandingRequests()
+	if op.pbft.primary(op.pbft.view) == op.pbft.id && op.pbft.activeView {
+		return op.leaderProcReq(req)
+	}
+	return nil
+}
+
 func (op *obcBatch) processMessage(ocMsg *pb.Message, senderHandle *pb.PeerID) events.Event {
+
 	if ocMsg.Type == pb.Message_CHAIN_TRANSACTION {
+		//从nvp或本地收到, 非主节点作恶
+		//req种类 1. 没抢占过的 2. 抢占过了
+		//1. 生成作恶req 2. 广播作恶req 3. 延缓广播/随机播/不播被作恶req
 		req := op.txToReq(ocMsg.Payload)
-		return op.submitToLeader(req)
+		if op.pbft.byzantine && op.pbft.primary(op.pbft.view) != op.pbft.id {
+			//是恶意但不是主节点
+			return op.tryByzantineForCTX(req)
+		}
+		return op.submitToLeader(req, "", "")
 	}
 
 	if ocMsg.Type != pb.Message_CONSENSUS {
+		//从vp广播收到
 		logger.Errorf("Unexpected message type: %s", ocMsg.Type)
 		return nil
 	}
@@ -286,8 +687,15 @@ func (op *obcBatch) processMessage(ocMsg *pb.Message, senderHandle *pb.PeerID) e
 			return nil
 		}
 
-		op.logAddTxFromRequest(req)
+		if op.pbft.byzantine && op.pbft.primary(op.pbft.view) != op.pbft.id {
+			//此处的req只可能是从外部来的
+			//1. 同伙的
+			//2. 正常节点的
+			return op.tryByzantineForCNS(req)
+		}
+		//op.logAddTxFromRequest(req)
 		op.reqStore.storeOutstanding(req)
+
 		if (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
 			return op.leaderProcReq(req)
 		}
