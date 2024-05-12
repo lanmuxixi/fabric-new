@@ -1,11 +1,13 @@
 package functions
 
 import (
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/examples/chaincode/go/chaincode_dns_reslover/common"
 	"github.com/hyperledger/fabric/examples/chaincode/go/chaincode_dns_reslover/myutils"
+	"math/big"
 	"strconv"
 )
 
@@ -18,8 +20,8 @@ const COMPACT = "TopLevelUpdate"
 func TopLevelDomainUpdate(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
 	//Args = ["domain", "ip", "type", "ttl", "username", "signature", "nonce", "target"]
-	if len(args) != 6 {
-		return nil, errors.New("incorrect number of arguments, Expecting 6 args")
+	if len(args) != 8 {
+		return nil, errors.New("incorrect number of arguments, Expecting 8 args")
 	}
 	result := true
 	domain := args[0]
@@ -51,17 +53,17 @@ func TopLevelDomainUpdate(stub shim.ChaincodeStubInterface, args []string) ([]by
 		ttl = common.DEAFULT_TTL
 	}
 	//check proof of work
-	//nonce := args[7]
-	//if args[6] != TARGET {
-	//	return nil, errors.New("target inconsistent with configuration!")
-	//}
-	//target := new(big.Int)
-	//target.SetString(args[6], 16)
-	////fmt.Printf("target = 0x" + fmt.Sprintf("%064x", target) + "\n")
-	//compact := nonce + COMPACT
-	//if !CheckProofOfWork([]byte(compact), target) {
-	//	return nil, errors.New("check proof of work not pass")
-	//}
+	nonce := args[7]
+	if args[6] != TARGET {
+		return nil, errors.New("target inconsistent with configuration!")
+	}
+	target := new(big.Int)
+	target.SetString(args[6], 16)
+	//fmt.Printf("target = 0x" + fmt.Sprintf("%064x", target) + "\n")
+	compact := nonce + COMPACT
+	if !CheckProofOfWork([]byte(compact), target) {
+		return nil, errors.New("check proof of work not pass")
+	}
 
 	// check the content
 	isValidContent, err := verifyContent(stub, owner, domain, signature)
@@ -123,17 +125,17 @@ func verifySameUser(stub shim.ChaincodeStubInterface, owner string, key string) 
 	return true, nil
 }
 
-//func CheckProofOfWork(data []byte, target *big.Int) bool {
-//	hashbyte := sha256.Sum256(data)
-//	hash := new(big.Int)
-//	hash.SetBytes(hashbyte[:])
-//
-//	hash256str := fmt.Sprintf("%064x", hash)
-//	fmt.Printf("0x" + hash256str + "\n")
-//
-//	result := hash.Cmp(target)
-//	if result < 1 {
-//		return true
-//	}
-//	return false
-//}
+func CheckProofOfWork(data []byte, target *big.Int) bool {
+	hashbyte := sha256.Sum256(data)
+	hash := new(big.Int)
+	hash.SetBytes(hashbyte[:])
+
+	//hash256str := fmt.Sprintf("%064x", hash)
+	//fmt.Printf("0x" + hash256str + "\n")
+
+	result := hash.Cmp(target)
+	if result < 1 {
+		return true
+	}
+	return false
+}

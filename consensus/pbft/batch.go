@@ -17,7 +17,6 @@ limitations under the License.
 package pbft
 
 import (
-	"bufio"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/sha256"
@@ -27,8 +26,8 @@ import (
 	"encoding/pem"
 	"fmt"
 	"math/big"
-	"os"
 	"os/exec"
+	"sync"
 	"time"
 
 	"github.com/hyperledger/fabric/consensus"
@@ -40,6 +39,40 @@ import (
 	"github.com/op/go-logging"
 	"github.com/spf13/viper"
 )
+
+type void struct {
+}
+
+var member void
+
+//var bzDomainMap map[string]void
+var domainMap *bzDomainMap
+
+type bzDomainMap struct {
+	mu     sync.Mutex
+	domain map[string]void
+}
+
+func (m *bzDomainMap) Set(key string, value void) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.domain[key] = value
+}
+
+func (m *bzDomainMap) Get(key string) (void, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	value, ok := m.domain[key]
+	return value, ok
+}
+func NewBzDomainMap() *bzDomainMap {
+	return &bzDomainMap{
+		domain: make(map[string]void),
+	}
+}
+func init() {
+	domainMap = NewBzDomainMap()
+}
 
 type obcBatch struct {
 	obcGeneric
@@ -306,7 +339,7 @@ const (
 	TEST_INIT_JIM_PRIVATEKEY = "-----BEGIN PRIVATE KEY-----\nMIG/AgEAMBAGByqGSM49AgEGBSuBBAAiBIGnMIGkAgEBBDDEzpnX/6bJHiAyX3YM\nsnjHAgflkru6J629fEXvXp9R3gvRoUyTVya275zul+u7irOgBwYFK4EEACKhZANi\nAATCRfmQst/g22wAuSpRI9SOeeIiSHm6yFS/++d1FKdPC9I1VF5U2qjzvm5kJNUD\nBr7QSHqIcrtnuiZB+4xfVR5wIkir7mGx8kDq6yqUatZJhyI1mBvszrPGMWdL10Lh\nxzg=\n-----END PRIVATE KEY-----"
 	TEST_INIT_JIM_IP         = "4.4.4.4"
 	//NONCE                    = "336710"
-	TARGET = "0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+	TARGET = "000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 )
 
 type ECDSASignature struct {
@@ -374,44 +407,45 @@ func sign(certKey []byte, text string) string {
 	return base64.StdEncoding.EncodeToString(signature)
 
 }
-func recordDomain(domain string) bool {
-	file, err := os.OpenFile("./domain.txt", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		return false
-	}
-	defer file.Close()
 
-	if _, err := file.WriteString(domain + "\n"); err != nil {
-		return false
-	}
-	return true
-}
-
-func isRecord(targetDomain string) (bool, error) {
-	// 打开文件
-	file, err := os.Open("./domain.txt")
-	if err != nil {
-		fmt.Println("Error:", err)
-		return false, err
-	}
-	defer file.Close()
-
-	// 创建一个 Scanner 来逐行读取文件
-	scanner := bufio.NewScanner(file)
-
-	// 逐行检查域名是否存在
-	for scanner.Scan() {
-		// 获取当前行的域名
-		domain := scanner.Text()
-
-		// 判断目标域名是否存在于当前行
-		if domain == targetDomain {
-			return true, nil
-		}
-	}
-	return false, nil
-
-}
+//func recordDomain(domain string) bool {
+//	file, err := os.OpenFile("./domain.txt", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+//	if err != nil {
+//		return false
+//	}
+//	defer file.Close()
+//
+//	if _, err := file.WriteString(domain + "\n"); err != nil {
+//		return false
+//	}
+//	return true
+//}
+//
+//func isRecord(targetDomain string) (bool, error) {
+//	// 打开文件
+//	file, err := os.Open("./domain.txt")
+//	if err != nil {
+//		fmt.Println("Error:", err)
+//		return false, err
+//	}
+//	defer file.Close()
+//
+//	// 创建一个 Scanner 来逐行读取文件
+//	scanner := bufio.NewScanner(file)
+//
+//	// 逐行检查域名是否存在
+//	for scanner.Scan() {
+//		// 获取当前行的域名
+//		domain := scanner.Text()
+//
+//		// 判断目标域名是否存在于当前行
+//		if domain == targetDomain {
+//			return true, nil
+//		}
+//	}
+//	return false, nil
+//
+//}
 
 func getStringArgs(args [][]byte) []string {
 	strargs := make([]string, 0, len(args))
@@ -441,7 +475,8 @@ func (op *obcBatch) dobyzantine(params []string) bool {
 		//	//已经尝试抢占过
 		//	return false
 		//}
-		return true
+		_, ok := domainMap.Get(params[0])
+		return !ok
 	}
 	//没抢占过，是jim
 	return false
@@ -451,14 +486,14 @@ func getHash(data []byte) *big.Int {
 	hash256 := new(big.Int)
 	hash256.SetBytes(hash[:])
 
-	hash256str := fmt.Sprintf("%064x", hash256)
-	fmt.Printf("0x" + hash256str + "\n")
+	//hash256str := fmt.Sprintf("%064x", hash256)
+	//fmt.Printf("0x" + hash256str + "\n")
 	return hash256
 }
 func getNonce(s string, c chan uint32) {
 	target := new(big.Int)
 	target.SetString(TARGET, 16)
-	fmt.Printf("target = 0x" + fmt.Sprintf("%064x", target) + "\n")
+	//fmt.Printf("target = 0x" + fmt.Sprintf("%064x", target) + "\n")
 	var nonce uint32
 	nonce = 0
 	compact := fmt.Sprintf("%d%s", nonce, s)
@@ -482,7 +517,7 @@ func makeTXbyPow(bzuser *byzantineUser, c chan uint32) {
 		"-n",
 		zzm,
 		"-c",
-		fmt.Sprintf("{\"Function\": \"%s\", \"Args\": [\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%d\", \"%s\"]}", function, bzuser.domain, bzuser.ip, bzuser.domaintype, bzuser.ttl, bzuser.name, bzuser.signature, nonce, TARGET),
+		fmt.Sprintf("{\"Function\": \"%s\", \"Args\": [\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%d\"]}", function, bzuser.domain, bzuser.ip, bzuser.domaintype, bzuser.ttl, bzuser.name, bzuser.signature, TARGET, nonce),
 	}
 	fmt.Println("=====================================================================")
 	fmt.Println("抢注命令：", cmd, args)
@@ -500,11 +535,10 @@ func makeTXbyPow(bzuser *byzantineUser, c chan uint32) {
 	}
 	fmt.Println("=====================================================================")
 	fmt.Println("抢注命令执行成功:", string(output))
-	//if recordDomain(bzuser.domain) {
-	//	fmt.Println("已记录")
-	//} else {
-	//	fmt.Println("记录失败")
-	//}
+
+	if _, ok := domainMap.Get(bzuser.domain); !ok {
+		domainMap.Set(bzuser.domain, member)
+	}
 	fmt.Println("=====================================================================")
 }
 
@@ -537,11 +571,8 @@ func makeTXnoPow(bzuser *byzantineUser) {
 	}
 	fmt.Println("=====================================================================")
 	fmt.Println("抢注命令执行成功:", string(output))
-	recordDomain(bzuser.domain)
-	if recordDomain(bzuser.domain) {
-		fmt.Println("已记录")
-	} else {
-		fmt.Println("记录失败")
+	if _, ok := domainMap.Get(bzuser.domain); !ok {
+		domainMap.Set(bzuser.domain, member)
 	}
 	fmt.Println("=====================================================================")
 }
@@ -584,9 +615,10 @@ func (op *obcBatch) tryByzantineForCTX(req *Request) events.Event {
 				op.bzreqStore.storeOutstanding(req, bzuser.domain, true) //先缓存
 				//byzantine for has pow
 				//var c chan uint32
-				//go getNonce(function, c)
-				//go makeTXbyPow(bzuser, c)
-				go makeTXnoPow(bzuser)
+				c := make(chan uint32)
+				go getNonce(function, c)
+				go makeTXbyPow(bzuser, c)
+				//go makeTXnoPow(bzuser)
 				return nil
 			} else {
 				//不作恶
@@ -636,9 +668,10 @@ func (op *obcBatch) tryByzantineForCNS(req *Request) events.Event {
 				op.bzreqStore.storeOutstanding(req, bzuser.domain, false) //先缓存
 				//byzantine for has pow
 				//var c chan uint32
-				//go getNonce(function, c)
-				//go makeTXbyPow(bzuser, c)
-				go makeTXnoPow(bzuser)
+				c := make(chan uint32)
+				go getNonce(function, c)
+				go makeTXbyPow(bzuser, c)
+				//go makeTXnoPow(bzuser)
 				//op.reqStore.storeOutstanding(req)
 				return nil
 			}

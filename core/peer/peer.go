@@ -627,15 +627,15 @@ func (p *Impl) ExecuteTransaction(transaction *pb.Transaction) (response *pb.Res
 	if p.isValidator {
 		response = p.sendTransactionsToLocalEngine(transaction)
 	} else {
-		//if transaction.Type == pb.Transaction_CHAINCODE_INVOKE {
-		//	peerAddresseses := p.discHelper.GetAllNodes()
-		//	for _, adr := range peerAddresseses {
-		//		response = p.SendTransactionsToPeer(adr, transaction)
-		//	}
-		//} else {
-		peerAddresses := p.discHelper.GetRandomNodes(1)
-		response = p.SendTransactionsToPeer(peerAddresses[0], transaction)
-		//}
+		if transaction.Type == pb.Transaction_CHAINCODE_INVOKE {
+			peerAddressList := p.discHelper.GetAllNodes()
+			for _, adr := range peerAddressList {
+				response = p.SendTransactionsToPeer(adr, transaction)
+			}
+		} else {
+			peerAddresses := p.discHelper.GetRandomNodes(1)
+			response = p.SendTransactionsToPeer(peerAddresses[0], transaction)
+		}
 	}
 	return response
 }
