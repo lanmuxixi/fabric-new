@@ -107,7 +107,7 @@ services:
       # service: vp_debug
     hostname: vp7
     environment:
-      - CORE_PBFT_GENERAL_BYZANTINE=true
+      - CORE_PBFT_GENERAL_BYZANTINE=false
       - CORE_PEER_ID=vp7
       - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
     links:
@@ -121,7 +121,7 @@ services:
       # service: vp_debug
     hostname: vp8
     environment:
-      - CORE_PBFT_GENERAL_BYZANTINE=true
+      - CORE_PBFT_GENERAL_BYZANTINE=false
       - CORE_PEER_ID=vp8
       - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
     links:
@@ -135,7 +135,7 @@ services:
       # service: vp_debug
     hostname: vp9
     environment:
-      - CORE_PBFT_GENERAL_BYZANTINE=true
+      - CORE_PBFT_GENERAL_BYZANTINE=false
       - CORE_PEER_ID=vp9
       - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
     links:

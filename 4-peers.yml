@@ -52,7 +52,7 @@ services:
     environment:
       - CORE_PEER_ID=vp2
       - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
-      - CORE_PBFT_GENERAL_BYZANTINE=true
+      - CORE_PBFT_GENERAL_BYZANTINE=false
     links:
       - vp0
 
