@@ -26,12 +26,6 @@ type requestContainer struct {
 	req *Request
 }
 
-type bzrequestContainer struct {
-	key  string
-	flag bool
-	req  *Request
-}
-
 type orderedRequests struct {
 	order    list.List                //双向链表
 	presence map[string]*list.Element //map方便查询
@@ -62,18 +56,6 @@ func (a *orderedRequests) get(key string) (*Request, error) {
 		return val.req, nil
 	}
 	return nil, errors.New("trans type failed")
-}
-
-func (a *orderedRequests) get_e(key string) (*list.Element, error) {
-	e, ok := a.presence[key]
-	if !ok {
-		return nil, errors.New("get value by key failed")
-	}
-	return e, nil
-	//if val, ok := e.Value.(bzrequestContainer); ok {
-	//	return val, nil
-	//}
-	//return nil, errors.New("trans type failed")
 }
 
 func (a *orderedRequests) add(request *Request) {
@@ -199,14 +181,13 @@ func newBzRequestStore() *bzrequestStore {
 	return rs
 }
 
-func (rs *bzrequestStore) storeOutstanding(request *Request, domain string, _flag bool) {
+func (rs *bzrequestStore) storeOutstanding(request *Request, domain string) {
 	//domain 做key
 	a := rs.outstandingRequests
 
-	rc := bzrequestContainer{
-		key:  domain,
-		req:  request,
-		flag: _flag,
+	rc := requestContainer{
+		key: domain,
+		req: request,
 	}
 	if !a.has(rc.key) {
 		e := a.order.PushBack(rc)
@@ -214,12 +195,11 @@ func (rs *bzrequestStore) storeOutstanding(request *Request, domain string, _fla
 	}
 }
 
-func (rs *bzrequestStore) storePending(request *Request, domain string, _flag bool) {
+func (rs *bzrequestStore) storePending(request *Request, domain string) {
 	a := rs.pendingRequests
-	rc := bzrequestContainer{
-		key:  domain,
-		req:  request,
-		flag: _flag,
+	rc := requestContainer{
+		key: domain,
+		req: request,
 	}
 	if !a.has(rc.key) {
 		e := a.order.PushBack(rc)
@@ -227,14 +207,13 @@ func (rs *bzrequestStore) storePending(request *Request, domain string, _flag bo
 	}
 }
 
-func (rs *bzrequestStore) remove(request *Request, domain string) (outstanding, pending bool, _flag bool) {
+func (rs *bzrequestStore) remove(request *Request, domain string) (outstanding, pending bool) {
 	o := rs.outstandingRequests
 	p := rs.pendingRequests
 
-	rc := bzrequestContainer{
-		key:  domain,
-		req:  request,
-		flag: _flag,
+	rc := requestContainer{
+		key: domain,
+		req: request,
 	}
 	oe, outstanding := o.presence[rc.key]
 	if outstanding {

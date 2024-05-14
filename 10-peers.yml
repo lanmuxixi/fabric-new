@@ -13,7 +13,7 @@ services:
     hostname: vp0
     environment:
       - CORE_PEER_ID=vp0
-
+      - CORE_PBFT_GENERAL_BYZANTINE=true
       # 恶意节点
       # - CORE_PBFT_GENERAL_BYZANTINE=true
     ports:
@@ -42,6 +42,7 @@ services:
     hostname: vp2
     environment:
       - CORE_PEER_ID=vp2
+      - CORE_PBFT_GENERAL_BYZANTINE=true
       - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
     links:
       - vp0
@@ -68,6 +69,7 @@ services:
     hostname: vp4
     environment:
       - CORE_PEER_ID=vp4
+      - CORE_PBFT_GENERAL_BYZANTINE=true
       - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
     links:
       - vp0
