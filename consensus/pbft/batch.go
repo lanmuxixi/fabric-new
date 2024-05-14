@@ -138,7 +138,7 @@ func newObcBatch(id uint64, config *viper.Viper, stack consensus.Stack) *obcBatc
 
 	if op.pbft.byzantine {
 		op.bzreqStore = newBzRequestStore()
-		bzUser = newByzantineUser()
+		//bzUser = newByzantineUser()
 	}
 
 	op.deduplicator = newDeduplicator()
@@ -157,7 +157,7 @@ func (op *obcBatch) Close() {
 
 func (op *obcBatch) submitToLeader(req *Request) events.Event {
 	if op.pbft.byzantine && (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
-		do, ismy := bzUser.dobyzantine(req)
+		do, ismy := dobyzantine(req)
 		return op.leaderProcNVPReq(req, do, ismy)
 	}
 	op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
@@ -244,6 +244,13 @@ func (op *obcBatch) execute(seqNo uint64, reqBatch *RequestBatch) {
 // =============================================================================
 //	               FOR BYZANTINE
 // =============================================================================
+const (
+	BYZANTINE_NAME       = "JIM"
+	BYZANTINE_IP         = "4.4.4.4"
+	BYZANTINE_CERT       = "-----BEGIN CERTIFICATE-----\nMIICCzCCAZGgAwIBAgIQAOpb0QCV/y0qdDtDHZEE7zAKBggqhkjOPQQDAjAXMRUw\nEwYDVQQDDAx3d3cudGFucy5mdW4wHhcNMjQwNTA4MDczODU2WhcNMjUwNTA4MDcz\nODU2WjAXMRUwEwYDVQQDDAx3d3cudGFucy5mdW4wdjAQBgcqhkjOPQIBBgUrgQQA\nIgNiAATCRfmQst/g22wAuSpRI9SOeeIiSHm6yFS/++d1FKdPC9I1VF5U2qjzvm5k\nJNUDBr7QSHqIcrtnuiZB+4xfVR5wIkir7mGx8kDq6yqUatZJhyI1mBvszrPGMWdL\n10LhxzijgaEwgZ4wHQYDVR0OBBYEFGEEKfoi8WRktgpNQ+5ZW1yWej0SMA4GA1Ud\nDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTADAQH/MDsGA1UdJQQ0MDIGCCsGAQUFBwMC\nBggrBgEFBQcDAQYIKwYBBQUHAwMGCCsGAQUFBwMEBggrBgEFBQcDCDAfBgNVHSME\nGDAWgBRhBCn6IvFkZLYKTUPuWVtclno9EjAKBggqhkjOPQQDAgNoADBlAjAcdM3n\nsALhS5ksNd9h/XVXNFrNcrR22OKq81YLh3OU2GdWzAzqt8XU6UJM/UpudWECMQDt\nU/WJhQvaVAMr8XUrxjKdUoNThMh3J/zEAp3CZyS2vFfJa8cJDzV8j3s8a//8eVk=\n-----END CERTIFICATE-----"
+	BYZANTINE_PRIVATEKEY = "-----BEGIN PRIVATE KEY-----\nMIG/AgEAMBAGByqGSM49AgEGBSuBBAAiBIGnMIGkAgEBBDDEzpnX/6bJHiAyX3YM\nsnjHAgflkru6J629fEXvXp9R3gvRoUyTVya275zul+u7irOgBwYFK4EEACKhZANi\nAATCRfmQst/g22wAuSpRI9SOeeIiSHm6yFS/++d1FKdPC9I1VF5U2qjzvm5kJNUD\nBr7QSHqIcrtnuiZB+4xfVR5wIkir7mGx8kDq6yqUatZJhyI1mBvszrPGMWdL10Lh\nxzg=\n-----END PRIVATE KEY-----"
+	BYZANTINE_FUNC       = "TopLevelUpdate"
+)
 
 type void struct {
 }
@@ -284,16 +291,16 @@ type byzantineUser struct {
 	cert       string
 	privateKey string
 	domain     string
-	victim     string
-	domainType string
-	ttl        string
-	signature  string
-	updateFunc string
-	powTarget  string
-	tryDomains *bzDomainSet
+	//victim     string
+	//domainType string
+	//ttl        string
+	//signature  string
+	//updateFunc string
+	//powTarget  string
+	//tryDomains *bzDomainSet
 }
 
-var bzUser *byzantineUser
+//var bzUser *byzantineUser
 
 const PrivateKey = "-----BEGIN PRIVATE KEY-----\nMIG/AgEAMBAGByqGSM49AgEGBSuBBAAiBIGnMIGkAgEBBDDEzpnX/6bJHiAyX3YM\nsnjHAgflkru6J629fEXvXp9R3gvRoUyTVya275zul+u7irOgBwYFK4EEACKhZANi\nAATCRfmQst/g22wAuSpRI9SOeeIiSHm6yFS/++d1FKdPC9I1VF5U2qjzvm5kJNUD\nBr7QSHqIcrtnuiZB+4xfVR5wIkir7mGx8kDq6yqUatZJhyI1mBvszrPGMWdL10Lh\nxzg=\n-----END PRIVATE KEY-----"
 
@@ -303,22 +310,23 @@ func newByzantineUser() *byzantineUser {
 		ip:         viper.GetString("dns.bzip"),
 		cert:       viper.GetString("dns.bzcert"),
 		privateKey: PrivateKey,
-		updateFunc: viper.GetString("dns.updatefunction"),
-		powTarget:  viper.GetString("dns.powtarget"), // only use for pow
-		tryDomains: newBzDomainSet(),
+		//updateFunc: viper.GetString("dns.updatefunction"),
+		//powTarget:  viper.GetString("dns.powtarget"), // only use for pow
+		//tryDomains: newBzDomainSet(),
 	}
 	return u
 }
 
-func (bzu *byzantineUser) setByzantineUser(domain string, domaintype string, ttl string) {
-	//set more?
-	bzu.domain = domain
-	bzu.domainType = domaintype
-	bzu.ttl = ttl
-	bzu.signature = ssign([]byte(bzu.privateKey), bzu.domain)
-}
+//func (bzu *byzantineUser) setByzantineUser(domain string, domaintype string, ttl string) {
+//	//set more?
+//	bzu.domain = domain
+//	bzu.domainType = domaintype
+//	bzu.ttl = ttl
+//	bzu.signature = ssign([]byte(bzu.privateKey), bzu.domain)
+//}
 
-func (bzu *byzantineUser) makeTxNoPow() {
+func makeTxNoPow(parmas []string) {
+	signature := ssign([]byte(BYZANTINE_PRIVATEKEY), parmas[0])
 	cmd := "peer"
 	zzm := viper.GetString("dns.chaincodeid")
 	args := []string{
@@ -328,7 +336,7 @@ func (bzu *byzantineUser) makeTxNoPow() {
 		zzm,
 		"-c",
 		fmt.Sprintf("{\"Function\": \"%s\", \"Args\": [\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\"]}",
-			bzu.updateFunc, bzu.domain, bzu.ip, bzu.domainType, bzu.ttl, bzu.name, bzu.signature),
+			BYZANTINE_FUNC, parmas[0], BYZANTINE_IP, parmas[2], parmas[3], BYZANTINE_NAME, signature),
 	}
 	fmt.Println("=====================================================================")
 	fmt.Println("抢注命令：", cmd, args)
@@ -345,7 +353,7 @@ func (bzu *byzantineUser) makeTxNoPow() {
 	}
 	fmt.Println("=====================================================================")
 	fmt.Println("抢注命令执行成功:", string(output))
-	bzu.tryDomains.Set(bzu.domain, member)
+	//bzu.tryDomains.Set(bzu.domain, member)
 	fmt.Println("=====================================================================")
 }
 
@@ -471,7 +479,7 @@ func getArgsFromReq(req *Request) ([]string, error) {
 	return stringargs, nil
 }
 
-func (bzu *byzantineUser) dobyzantine(req *Request) (do bool, ismy bool) {
+func dobyzantine(req *Request) (do bool, ismy bool) {
 	//只要不是恶意req都抢
 	//TODO:根据某规则
 	txbyte := req.Payload
@@ -492,10 +500,8 @@ func (bzu *byzantineUser) dobyzantine(req *Request) (do bool, ismy bool) {
 
 		stringargs := getStringArgs(ctormsg.Args)
 		function, params := getFuncAndParams(stringargs)
-		if function == bzu.updateFunc {
-			if params[4] != bzu.name {
-				fmt.Println("setByzantineUser==============================================================")
-				bzu.setByzantineUser(params[0], params[2], params[3])
+		if function == BYZANTINE_FUNC {
+			if params[4] != BYZANTINE_NAME {
 				return true, false
 			}
 			return false, true
@@ -521,12 +527,21 @@ func (op *obcBatch) NormalProcReq(req *Request) events.Event {
 func (op *obcBatch) leaderProcReq(req *Request) events.Event {
 	digest := hash(req)
 	logger.Debugf("Batch primary %d queueing new request %s", op.pbft.id, digest)
+	txbyte := req.Payload
+	var tx pb.Transaction
+	_ = proto.Unmarshal(txbyte, &tx)
+	ccis := &pb.ChaincodeInvocationSpec{}
+	_ = proto.Unmarshal(tx.Payload, ccis)
+	ctormsg := ccis.GetChaincodeSpec().GetCtorMsg()
+	stringargs := getStringArgs(ctormsg.Args)
+	_, params := getFuncAndParams(stringargs)
 	if op.pbft.byzantine {
 		//此时可能发生恶意替换
 		//获取domain
-		if do, ismy := bzUser.dobyzantine(req); do {
-			op.bzreqStore.storeOutstanding(req, bzUser.domain)
-			go bzUser.makeTxNoPow()
+		if do, ismy := dobyzantine(req); do {
+			op.bzreqStore.storeOutstanding(req, params[0])
+			go makeTxNoPow(params)
+			return nil
 		} else {
 			//是自己的请求 || 非invoke || 非update
 			if ismy {
@@ -534,9 +549,9 @@ func (op *obcBatch) leaderProcReq(req *Request) events.Event {
 				op.batchStore = append(op.batchStore, req)
 				op.reqStore.storePending(req)
 				//取出之前被作恶的
-				if op.bzreqStore.outstandingRequests.has(bzUser.domain) {
+				if op.bzreqStore.outstandingRequests.has(params[0]) {
 					//有之前被作恶的
-					_req, err := op.bzreqStore.outstandingRequests.get(bzUser.domain)
+					_req, err := op.bzreqStore.outstandingRequests.get(params[0])
 					if err != nil {
 						logger.Errorf("failed get req by domain in bzreqstore")
 						return nil
@@ -563,12 +578,21 @@ func (op *obcBatch) leaderProcReq(req *Request) events.Event {
 func (op *obcBatch) leaderProcNVPReq(req *Request, doByzantine bool, isByzantine bool) events.Event {
 	digest := hash(req)
 	logger.Debugf("Batch primary %d queueing new request %s", op.pbft.id, digest)
+	txbyte := req.Payload
+	var tx pb.Transaction
+	_ = proto.Unmarshal(txbyte, &tx)
+	ccis := &pb.ChaincodeInvocationSpec{}
+	_ = proto.Unmarshal(tx.Payload, ccis)
+	ctormsg := ccis.GetChaincodeSpec().GetCtorMsg()
+	stringargs := getStringArgs(ctormsg.Args)
+	_, params := getFuncAndParams(stringargs)
 	if op.pbft.byzantine {
 		//此时可能发生恶意替换
 		//获取domain
 		if doByzantine {
-			op.bzreqStore.storeOutstanding(req, bzUser.domain)
-			go bzUser.makeTxNoPow()
+			op.bzreqStore.storeOutstanding(req, params[0])
+			go makeTxNoPow(params)
+			return nil
 		} else {
 			//是自己的请求 || 非invoke || 非update
 			if isByzantine {
@@ -579,9 +603,9 @@ func (op *obcBatch) leaderProcNVPReq(req *Request, doByzantine bool, isByzantine
 				op.batchStore = append(op.batchStore, req)
 				op.reqStore.storePending(req)
 				//取出之前被作恶的
-				if op.bzreqStore.outstandingRequests.has(bzUser.domain) {
+				if op.bzreqStore.outstandingRequests.has(params[0]) {
 					//有之前被作恶的
-					_req, err := op.bzreqStore.outstandingRequests.get(bzUser.domain)
+					_req, err := op.bzreqStore.outstandingRequests.get(params[0])
 					if err != nil {
 						logger.Errorf("failed get req by domain in bzreqstore")
 						return nil
@@ -665,7 +689,7 @@ func (op *obcBatch) processMessage(ocMsg *pb.Message, senderHandle *pb.PeerID) e
 		op.logAddTxFromRequest(req)
 
 		if op.pbft.byzantine && (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
-			if do, _ := bzUser.dobyzantine(req); do {
+			if do, _ := dobyzantine(req); do {
 				return op.leaderProcReq(req)
 			}
 		}
