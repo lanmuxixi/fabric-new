@@ -20,7 +20,6 @@ def now_time_ns():
 
 
 if __name__ == '__main__':
-    print(time.time())
     total_tx_number = 0
     parser = argparse.ArgumentParser(description="Process some integers.")
     parser.add_argument('-t', type=str, help='The file location', default=file_location)
@@ -39,21 +38,24 @@ if __name__ == '__main__':
                 print("start_time: {}".format(start_time))
                 threads = []
                 transaction_number = 0
-                while True:  
+                while True:
                     if time.time() - start_time > 1 or transaction_number >= transaction_speed:
                         break
                     line = file.readline()
-                    thread = threading.Thread(target=run_command, args=(line,))
-                    thread.start()
-                    threads.append(thread)
-                    total_tx_number += 1
-                    transaction_number += 1
+                    if line.strip():
+                        thread = threading.Thread(target=run_command, args=(line,))
+                        thread.start()
+                        threads.append(thread)
+                        total_tx_number += 1
+                        transaction_number += 1
                 for thread in threads:
                     thread.join()
                 end_time = time.time()  # get the end time after the transaction
                 time_difference_ms = (end_time - start_time) * 10 ** 3  # calculate the time difference in milliseconds
                 print("Execute {} transaction, total use {}ms".format(transaction_number, int(time_difference_ms)))
-                time.sleep((1000 - time_difference_ms) / 10 ** 3)
-            print("Total Execute{} tx".format(total_tx_number))
+                sleep_time = (1000 - time_difference_ms) / 10 ** 3
+                if sleep_time > 0:  # check if the sleep time is positive
+                    time.sleep(sleep_time)
+            print("Total Execute{}".format(total_tx_number))
     except Exception as e:
         traceback.print_exc()
