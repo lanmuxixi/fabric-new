@@ -47,7 +47,7 @@ services:
   vp2:
     extends:
       file: peer.yml
-      service: vp_debug
+      service: vp
     hostname: vp2
     environment:
       - CORE_PEER_ID=vp2
