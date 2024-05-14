@@ -16,7 +16,6 @@ services:
 
       # 恶意节点
       # - CORE_PBFT_GENERAL_BYZANTINE=true
-
     ports:
       - "7050:7050"
       # - "7051:7051" 
