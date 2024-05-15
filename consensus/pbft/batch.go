@@ -275,12 +275,12 @@ var bzdomains *bzDomainSet
 func (bzm *bzDomainSet) Set(key string, value void) {
 	bzm.mu.Lock()
 	defer bzm.mu.Unlock()
-	if !bzm.Has(key) {
-		bzm.domains[key] = value
-	}
+	bzm.domains[key] = value
 }
 
 func (bzm *bzDomainSet) Has(key string) bool {
+	bzm.mu.Lock()
+	defer bzm.mu.Unlock()
 	_, exists := bzm.domains[key]
 	return exists
 }
