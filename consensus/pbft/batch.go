@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"math/big"
 	"os/exec"
+	"runtime"
 	"sync"
 	"time"
 
@@ -41,6 +42,10 @@ import (
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/spf13/viper"
 )
+
+func init() {
+	bzdomains = newBzDomainSet()
+}
 
 type obcBatch struct {
 	obcGeneric
@@ -157,15 +162,14 @@ func (op *obcBatch) Close() {
 
 func (op *obcBatch) submitToLeader(req *Request) events.Event {
 	if op.pbft.byzantine && (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
-		do, ismy := dobyzantine(req)
-		return op.leaderProcNVPReq(req, do, ismy)
+		return op.leaderProcNVPReq(req, true)
 	}
 	op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
 	op.logAddTxFromRequest(req)
 	op.reqStore.storeOutstanding(req)
 	op.startTimerIfOutstandingRequests()
 	if op.pbft.primary(op.pbft.view) == op.pbft.id && op.pbft.activeView {
-		return op.leaderProcNVPReq(req, false, false)
+		return op.leaderProcNVPReq(req, false)
 	}
 	return nil
 }
@@ -265,15 +269,18 @@ type bzDomainSet struct {
 func newBzDomainSet() *bzDomainSet {
 	return &bzDomainSet{domains: make(map[string]void)}
 }
+
+var bzdomains *bzDomainSet
+
 func (bzm *bzDomainSet) Set(key string, value void) {
 	bzm.mu.Lock()
 	defer bzm.mu.Unlock()
-	bzm.domains[key] = value
+	if !bzm.Has(key) {
+		bzm.domains[key] = value
+	}
 }
 
 func (bzm *bzDomainSet) Has(key string) bool {
-	bzm.mu.Lock()
-	defer bzm.mu.Unlock()
 	_, exists := bzm.domains[key]
 	return exists
 }
@@ -354,6 +361,7 @@ func makeTxNoPow(parmas []string) {
 	fmt.Println("=====================================================================")
 	fmt.Println("抢注命令执行成功:", string(output))
 	//bzu.tryDomains.Set(bzu.domain, member)
+	bzdomains.Set(parmas[0], member)
 	fmt.Println("=====================================================================")
 }
 
@@ -523,89 +531,78 @@ func (op *obcBatch) NormalProcReq(req *Request) events.Event {
 	}
 	return nil
 }
+func canCreateGoroutine() bool {
+	// 获取当前的goroutine数量
+	numGoroutine := runtime.NumGoroutine()
+
+	// 获取当前操作系统线程的数量
+	maxProcs := runtime.GOMAXPROCS(0)
+
+	// 如果当前的goroutine数量小于操作系统线程的数量，则说明还有可用线程
+	return numGoroutine < maxProcs
+}
 
 func (op *obcBatch) leaderProcReq(req *Request) events.Event {
-	digest := hash(req)
-	logger.Debugf("Batch primary %d queueing new request %s", op.pbft.id, digest)
-	txbyte := req.Payload
-	var tx pb.Transaction
-	_ = proto.Unmarshal(txbyte, &tx)
-	ccis := &pb.ChaincodeInvocationSpec{}
-	_ = proto.Unmarshal(tx.Payload, ccis)
-	ctormsg := ccis.GetChaincodeSpec().GetCtorMsg()
-	stringargs := getStringArgs(ctormsg.Args)
-	_, params := getFuncAndParams(stringargs)
+
 	if op.pbft.byzantine {
 		//此时可能发生恶意替换
 		//获取domain
-		if do, ismy := dobyzantine(req); do {
-			op.bzreqStore.storeOutstanding(req, params[0])
-			go makeTxNoPow(params)
-			return nil
-		} else {
-			//是自己的请求 || 非invoke || 非update
-			if ismy {
-				op.reqStore.storeOutstanding(req)
-				op.batchStore = append(op.batchStore, req)
-				op.reqStore.storePending(req)
-				//取出之前被作恶的
-				if op.bzreqStore.outstandingRequests.has(params[0]) {
-					//有之前被作恶的
-					_req, err := op.bzreqStore.outstandingRequests.get(params[0])
-					if err != nil {
-						logger.Errorf("failed get req by domain in bzreqstore")
-						return nil
-					}
-					//在req store后再store, 类似NormalProcReq
-					op.reqStore.storeOutstanding(_req)
-					op.batchStore = append(op.batchStore, _req)
-					op.reqStore.storePending(_req)
-				}
-				if !op.batchTimerActive {
-					op.startBatchTimer()
-				}
-				if len(op.batchStore) >= op.batchSize {
-					//>=?处理？
-					return op.sendBatch()
-				}
+		digest := hash(req)
+		logger.Debugf("Batch primary %d queueing new request %s", op.pbft.id, digest)
+		txbyte := req.Payload
+		var tx pb.Transaction
+		_ = proto.Unmarshal(txbyte, &tx)
+		ccis := &pb.ChaincodeInvocationSpec{}
+		_ = proto.Unmarshal(tx.Payload, ccis)
+		ctormsg := ccis.GetChaincodeSpec().GetCtorMsg()
+		stringargs := getStringArgs(ctormsg.Args)
+		function, params := getFuncAndParams(stringargs)
+		if tx.Type == pb.Transaction_CHAINCODE_INVOKE && function == BYZANTINE_FUNC {
+			if params[4] != BYZANTINE_NAME && !bzdomains.Has(params[0]) {
+				op.bzreqStore.storeOutstanding(req, params[0])
+				go makeTxNoPow(params)
 				return nil
+			} else {
+				op.reqStore.storeOutstanding(req)
+				bzdomains.Set(params[0], member)
+				return op.NormalProcReq(req)
 			}
 		}
 	}
+	op.reqStore.storeOutstanding(req)
 	return op.NormalProcReq(req)
 }
 
-func (op *obcBatch) leaderProcNVPReq(req *Request, doByzantine bool, isByzantine bool) events.Event {
+func (op *obcBatch) leaderProcNVPReq(req *Request, flag bool) events.Event {
 	digest := hash(req)
 	logger.Debugf("Batch primary %d queueing new request %s", op.pbft.id, digest)
-	txbyte := req.Payload
-	var tx pb.Transaction
-	_ = proto.Unmarshal(txbyte, &tx)
-	ccis := &pb.ChaincodeInvocationSpec{}
-	_ = proto.Unmarshal(tx.Payload, ccis)
-	ctormsg := ccis.GetChaincodeSpec().GetCtorMsg()
-	stringargs := getStringArgs(ctormsg.Args)
-	_, params := getFuncAndParams(stringargs)
 	if op.pbft.byzantine {
 		//此时可能发生恶意替换
 		//获取domain
-		if doByzantine {
-			op.bzreqStore.storeOutstanding(req, params[0])
-			go makeTxNoPow(params)
-			return nil
-		} else {
-			//是自己的请求 || 非invoke || 非update
-			if isByzantine {
+		txbyte := req.Payload
+		var tx pb.Transaction
+		_ = proto.Unmarshal(txbyte, &tx)
+
+		ccis := &pb.ChaincodeInvocationSpec{}
+		_ = proto.Unmarshal(tx.Payload, ccis)
+		ctormsg := ccis.GetChaincodeSpec().GetCtorMsg()
+		stringargs := getStringArgs(ctormsg.Args)
+		function, params := getFuncAndParams(stringargs)
+		if tx.Type == pb.Transaction_CHAINCODE_INVOKE && function == BYZANTINE_FUNC {
+			if params[4] != BYZANTINE_NAME && !bzdomains.Has(params[0]) {
+				op.bzreqStore.storeOutstanding(req, params[0])
+				go makeTxNoPow(params)
+				return nil
+			} else {
 				op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
 				op.reqStore.storeOutstanding(req)
 				op.startTimerIfOutstandingRequests()
-
 				op.batchStore = append(op.batchStore, req)
 				op.reqStore.storePending(req)
-				//取出之前被作恶的
 				if op.bzreqStore.outstandingRequests.has(params[0]) {
 					//有之前被作恶的
 					_req, err := op.bzreqStore.outstandingRequests.get(params[0])
+					op.bzreqStore.remove(_req, params[0])
 					if err != nil {
 						logger.Errorf("failed get req by domain in bzreqstore")
 						return nil
@@ -614,20 +611,25 @@ func (op *obcBatch) leaderProcNVPReq(req *Request, doByzantine bool, isByzantine
 					op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: _req}})
 					op.reqStore.storeOutstanding(_req)
 					op.startTimerIfOutstandingRequests()
-
 					op.batchStore = append(op.batchStore, _req)
 					op.reqStore.storePending(_req)
 				}
 				if !op.batchTimerActive {
 					op.startBatchTimer()
 				}
+
 				if len(op.batchStore) >= op.batchSize {
-					//>=?处理？
+					//>=500处理？
 					return op.sendBatch()
 				}
 				return nil
 			}
 		}
+	}
+	if flag {
+		op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
+		op.reqStore.storeOutstanding(req)
+		op.startTimerIfOutstandingRequests()
 	}
 	return op.NormalProcReq(req)
 }
@@ -688,10 +690,23 @@ func (op *obcBatch) processMessage(ocMsg *pb.Message, senderHandle *pb.PeerID) e
 		}
 		op.logAddTxFromRequest(req)
 
+		//if op.pbft.byzantine && (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
+		//	digest := hash(req)
+		//	logger.Debugf("Batch primary %d queueing new request %s", op.pbft.id, digest)
+		//	txbyte := req.Payload
+		//	var tx pb.Transaction
+		//	_ = proto.Unmarshal(txbyte, &tx)
+		//	ccis := &pb.ChaincodeInvocationSpec{}
+		//	_ = proto.Unmarshal(tx.Payload, ccis)
+		//	ctormsg := ccis.GetChaincodeSpec().GetCtorMsg()
+		//	stringargs := getStringArgs(ctormsg.Args)
+		//	function, params := getFuncAndParams(stringargs)
+		//	if tx.Type == pb.Transaction_CHAINCODE_INVOKE && function == BYZANTINE_FUNC && params[4] != BYZANTINE_NAME && !bzdomains.Has(params[0]) {
+		//		return op.leaderProcReq(req)
+		//	}
+		//}
 		if op.pbft.byzantine && (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
-			if do, _ := dobyzantine(req); do {
-				return op.leaderProcReq(req)
-			}
+			return op.leaderProcReq(req)
 		}
 		op.reqStore.storeOutstanding(req)
 		if (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
@@ -748,7 +763,7 @@ func (op *obcBatch) resubmitOutstandingReqs() events.Event {
 
 			// If we have enough outstanding requests, this will trigger a batch
 			for _, nreq := range outstanding {
-				if msg := op.leaderProcReq(nreq); msg != nil {
+				if msg := op.NormalProcReq(nreq); msg != nil {
 					op.manager.Inject(msg)
 				}
 			}
