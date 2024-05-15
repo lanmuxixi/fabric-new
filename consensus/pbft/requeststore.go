@@ -186,7 +186,7 @@ func (rs *bzrequestStore) storeOutstanding(request *Request, domain string) {
 	a := rs.outstandingRequests
 
 	rc := requestContainer{
-		key: hash(domain),
+		key: domain,
 		req: request,
 	}
 	if !a.has(rc.key) {
@@ -198,7 +198,7 @@ func (rs *bzrequestStore) storeOutstanding(request *Request, domain string) {
 func (rs *bzrequestStore) storePending(request *Request, domain string) {
 	a := rs.pendingRequests
 	rc := requestContainer{
-		key: hash(domain),
+		key: domain,
 		req: request,
 	}
 	if !a.has(rc.key) {
@@ -212,7 +212,7 @@ func (rs *bzrequestStore) remove(request *Request, domain string) (outstanding, 
 	p := rs.pendingRequests
 
 	rc := requestContainer{
-		key: hash(domain),
+		key: domain,
 		req: request,
 	}
 	oe, outstanding := o.presence[rc.key]
