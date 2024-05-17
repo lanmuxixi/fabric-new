@@ -116,6 +116,11 @@ func newRequestStore() *requestStore {
 
 	return rs
 }
+func (rs *requestStore) len() (outstanding int, pending int) {
+	outstanding = rs.outstandingRequests.Len()
+	pending = rs.pendingRequests.Len()
+	return
+}
 
 // storeOutstanding adds a request to the outstanding request list
 func (rs *requestStore) storeOutstanding(request *Request) {
