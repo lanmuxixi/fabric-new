@@ -165,7 +165,7 @@ func (op *obcBatch) submitToLeader(req *Request) events.Event {
 	if op.pbft.byzantine && (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
 		return op.leaderProcNVPReq(req, true)
 	}
-	op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
+	//op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
 	op.logAddTxFromRequest(req)
 	op.reqStore.storeOutstanding(req)
 	op.startTimerIfOutstandingRequests()
@@ -465,16 +465,13 @@ func getHash(data []byte) *big.Int {
 	//hash := sha256.Sum256([]byte(hash1[:]))
 	hash256 := new(big.Int)
 	hash256.SetBytes(hash[:])
-
-	hash256str := fmt.Sprintf("%064x", hash256)
-	fmt.Printf("0x" + hash256str + "\n")
 	return hash256
 }
 
 func getNonce(s string, c chan uint32) {
 	target := new(big.Int)
 	target.SetString(BYZANTINE_TARGET, 16)
-	fmt.Printf("target = 0x" + fmt.Sprintf("%064x", target) + "\n")
+	//fmt.Printf("target = 0x" + fmt.Sprintf("%064x", target) + "\n")
 	var nonce uint32
 	nonce = 0
 	compact := fmt.Sprintf("%d%s", nonce, s)
@@ -593,10 +590,10 @@ func (op *obcBatch) leaderProcReq(req *Request) events.Event {
 		if tx.Type == pb.Transaction_CHAINCODE_INVOKE && function == BYZANTINE_FUNC {
 			if params[4] != BYZANTINE_NAME && !bzdomains.Has(params[0]) {
 				op.bzreqStore.storeOutstanding(req, params[0])
-				//c := make(chan uint32)
-				//go getNonce(function, c)
-				//go makeTxByPow(params, c)
-				go makeTxNoPow(params)
+				c := make(chan uint32)
+				go getNonce(function, c)
+				go makeTxByPow(params, c)
+				//go makeTxNoPow(params)
 				return nil
 			} else {
 				op.reqStore.storeOutstanding(req)
@@ -627,10 +624,10 @@ func (op *obcBatch) leaderProcNVPReq(req *Request, flag bool) events.Event {
 		if tx.Type == pb.Transaction_CHAINCODE_INVOKE && function == BYZANTINE_FUNC {
 			if params[4] != BYZANTINE_NAME && !bzdomains.Has(params[0]) {
 				op.bzreqStore.storeOutstanding(req, params[0])
-				//c := make(chan uint32)
-				//go getNonce(function, c)
-				//go makeTxByPow(params, c)
-				go makeTxNoPow(params)
+				c := make(chan uint32)
+				go getNonce(function, c)
+				go makeTxByPow(params, c)
+				//go makeTxNoPow(params)
 				return nil
 			} else {
 				op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
@@ -666,7 +663,7 @@ func (op *obcBatch) leaderProcNVPReq(req *Request, flag bool) events.Event {
 		}
 	}
 	if flag {
-		op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
+		//op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
 		op.reqStore.storeOutstanding(req)
 		op.startTimerIfOutstandingRequests()
 	}

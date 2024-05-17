@@ -628,13 +628,13 @@ func (p *Impl) ExecuteTransaction(transaction *pb.Transaction) (response *pb.Res
 		response = p.sendTransactionsToLocalEngine(transaction)
 	} else {
 		//if transaction.Type == pb.Transaction_CHAINCODE_INVOKE {
-		//	peerAddresseses := p.discHelper.GetAllNodes()
-		//	for _, adr := range peerAddresseses {
-		//		response = p.SendTransactionsToPeer(adr, transaction)
-		//	}
+		peerAddresseses := p.discHelper.GetAllNodes()
+		for _, adr := range peerAddresseses {
+			response = p.SendTransactionsToPeer(adr, transaction)
+		}
 		//} else {
-		peerAddresses := p.discHelper.GetRandomNodes(1)
-		response = p.SendTransactionsToPeer(peerAddresses[0], transaction)
+		//	peerAddresses := p.discHelper.GetRandomNodes(1)
+		//	response = p.SendTransactionsToPeer(peerAddresses[0], transaction)
 		//}
 	}
 	return response
