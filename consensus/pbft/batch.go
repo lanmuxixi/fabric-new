@@ -26,6 +26,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/hyperledger/fabric/core/util"
 	"math/big"
 	"os/exec"
 	"runtime"
@@ -223,6 +224,8 @@ func (op *obcBatch) verify(senderID uint64, signature []byte, message []byte) er
 // execute an opaque request which corresponds to an OBC Transaction
 func (op *obcBatch) execute(seqNo uint64, reqBatch *RequestBatch) {
 	var txs []*pb.Transaction
+	outstanding, pending := op.reqStore.len()
+	fmt.Printf("id:%d, time:%v, outstanding len:%d, pending len:%d\n", op.pbft.id, util.CreateUtcTimestamp(), outstanding, pending)
 	for _, req := range reqBatch.GetBatch() {
 		tx := &pb.Transaction{}
 		if err := proto.Unmarshal(req.Payload, tx); err != nil {
@@ -254,6 +257,7 @@ const (
 	BYZANTINE_CERT       = "-----BEGIN CERTIFICATE-----\nMIICCzCCAZGgAwIBAgIQAOpb0QCV/y0qdDtDHZEE7zAKBggqhkjOPQQDAjAXMRUw\nEwYDVQQDDAx3d3cudGFucy5mdW4wHhcNMjQwNTA4MDczODU2WhcNMjUwNTA4MDcz\nODU2WjAXMRUwEwYDVQQDDAx3d3cudGFucy5mdW4wdjAQBgcqhkjOPQIBBgUrgQQA\nIgNiAATCRfmQst/g22wAuSpRI9SOeeIiSHm6yFS/++d1FKdPC9I1VF5U2qjzvm5k\nJNUDBr7QSHqIcrtnuiZB+4xfVR5wIkir7mGx8kDq6yqUatZJhyI1mBvszrPGMWdL\n10LhxzijgaEwgZ4wHQYDVR0OBBYEFGEEKfoi8WRktgpNQ+5ZW1yWej0SMA4GA1Ud\nDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTADAQH/MDsGA1UdJQQ0MDIGCCsGAQUFBwMC\nBggrBgEFBQcDAQYIKwYBBQUHAwMGCCsGAQUFBwMEBggrBgEFBQcDCDAfBgNVHSME\nGDAWgBRhBCn6IvFkZLYKTUPuWVtclno9EjAKBggqhkjOPQQDAgNoADBlAjAcdM3n\nsALhS5ksNd9h/XVXNFrNcrR22OKq81YLh3OU2GdWzAzqt8XU6UJM/UpudWECMQDt\nU/WJhQvaVAMr8XUrxjKdUoNThMh3J/zEAp3CZyS2vFfJa8cJDzV8j3s8a//8eVk=\n-----END CERTIFICATE-----"
 	BYZANTINE_PRIVATEKEY = "-----BEGIN PRIVATE KEY-----\nMIG/AgEAMBAGByqGSM49AgEGBSuBBAAiBIGnMIGkAgEBBDDEzpnX/6bJHiAyX3YM\nsnjHAgflkru6J629fEXvXp9R3gvRoUyTVya275zul+u7irOgBwYFK4EEACKhZANi\nAATCRfmQst/g22wAuSpRI9SOeeIiSHm6yFS/++d1FKdPC9I1VF5U2qjzvm5kJNUD\nBr7QSHqIcrtnuiZB+4xfVR5wIkir7mGx8kDq6yqUatZJhyI1mBvszrPGMWdL10Lh\nxzg=\n-----END PRIVATE KEY-----"
 	BYZANTINE_FUNC       = "TopLevelUpdate"
+	BYZANTINE_TARGET     = "000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 )
 
 type void struct {
@@ -345,6 +349,40 @@ func makeTxNoPow(parmas []string) {
 		fmt.Sprintf("{\"Function\": \"%s\", \"Args\": [\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\"]}",
 			BYZANTINE_FUNC, parmas[0], BYZANTINE_IP, parmas[2], parmas[3], BYZANTINE_NAME, signature),
 	}
+	//fmt.Println("=====================================================================")
+	//fmt.Println("抢注命令：", cmd, args)
+	//fmt.Println("=====================================================================")
+
+	command := exec.Command(cmd, args...)
+
+	_, err := command.CombinedOutput()
+	if err != nil {
+		//fmt.Println("=====================================================================")
+		//fmt.Println("抢注命令执行失败:", err)
+		//fmt.Println("=====================================================================")
+		return
+	}
+	//fmt.Println("=====================================================================")
+	//fmt.Println("抢注命令执行成功:", string(output))
+	//bzu.tryDomains.Set(bzu.domain, member)
+	bzdomains.Set(parmas[0], member)
+	//fmt.Println("=====================================================================")
+}
+
+func makeTxByPow(parmas []string, c chan uint32) {
+	nonce := <-c
+	signature := ssign([]byte(BYZANTINE_PRIVATEKEY), parmas[0])
+	cmd := "peer"
+	zzm := viper.GetString("dns.chaincodeid")
+	args := []string{
+		"chaincode",
+		"invoke",
+		"-n",
+		zzm,
+		"-c",
+		fmt.Sprintf("{\"Function\": \"%s\", \"Args\": [\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%d\"]}",
+			BYZANTINE_FUNC, parmas[0], BYZANTINE_IP, parmas[2], parmas[3], BYZANTINE_NAME, signature, BYZANTINE_TARGET, nonce),
+	}
 	fmt.Println("=====================================================================")
 	fmt.Println("抢注命令：", cmd, args)
 	fmt.Println("=====================================================================")
@@ -423,8 +461,8 @@ func nbits2target(nBits uint32) *big.Int {
 }
 
 func getHash(data []byte) *big.Int {
-	hash1 := sha256.Sum256(data)
-	hash := sha256.Sum256([]byte(hash1[:]))
+	hash := sha256.Sum256(data)
+	//hash := sha256.Sum256([]byte(hash1[:]))
 	hash256 := new(big.Int)
 	hash256.SetBytes(hash[:])
 
@@ -433,23 +471,18 @@ func getHash(data []byte) *big.Int {
 	return hash256
 }
 
-func getNonce(nbits uint32, domain string, byzantineIP string, c chan uint32) uint32 {
-	target := nbits2target(nbits)
+func getNonce(s string, c chan uint32) {
+	target := new(big.Int)
+	target.SetString(BYZANTINE_TARGET, 16)
 	fmt.Printf("target = 0x" + fmt.Sprintf("%064x", target) + "\n")
 	var nonce uint32
-	data := []byte(byzantineIP + domain)
 	nonce = 0
-	compact := fmt.Sprintf("%d%s", nonce, data)
+	compact := fmt.Sprintf("%d%s", nonce, s)
 	for getHash([]byte(compact)).Cmp(target) > 0 {
-		fmt.Println(compact)
 		nonce++
-		compact = fmt.Sprintf("%d%s", nonce, data)
-		if nonce > 200 { //真要挖矿？
-			break
-		}
+		compact = fmt.Sprintf("%d%s", nonce, s)
 	}
 	c <- nonce
-	return nonce
 }
 
 func getStringArgs(args [][]byte) []string {
@@ -560,6 +593,9 @@ func (op *obcBatch) leaderProcReq(req *Request) events.Event {
 		if tx.Type == pb.Transaction_CHAINCODE_INVOKE && function == BYZANTINE_FUNC {
 			if params[4] != BYZANTINE_NAME && !bzdomains.Has(params[0]) {
 				op.bzreqStore.storeOutstanding(req, params[0])
+				//c := make(chan uint32)
+				//go getNonce(function, c)
+				//go makeTxByPow(params, c)
 				go makeTxNoPow(params)
 				return nil
 			} else {
@@ -591,6 +627,9 @@ func (op *obcBatch) leaderProcNVPReq(req *Request, flag bool) events.Event {
 		if tx.Type == pb.Transaction_CHAINCODE_INVOKE && function == BYZANTINE_FUNC {
 			if params[4] != BYZANTINE_NAME && !bzdomains.Has(params[0]) {
 				op.bzreqStore.storeOutstanding(req, params[0])
+				//c := make(chan uint32)
+				//go getNonce(function, c)
+				//go makeTxByPow(params, c)
 				go makeTxNoPow(params)
 				return nil
 			} else {
@@ -647,7 +686,7 @@ func (op *obcBatch) sendBatch() events.Event {
 
 	reqBatch := &RequestBatch{Batch: op.batchStore}
 	op.batchStore = nil
-	logger.Infof("Creating batch with %d requests", len(reqBatch.Batch))
+	logger.Infof("%v:Creating batch with %d requests", util.CreateUtcTimestamp(), len(reqBatch.Batch))
 	return reqBatch
 }
 

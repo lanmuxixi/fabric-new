@@ -1,11 +1,16 @@
 # 链码ID
-zzm="7ddc511a621936a639a4d8dfdbc2dcd07d0420f9e8dcd59c957ddecd11097265b7db9391191c03cad9b75867acc8112406ee9a3654e84400033f6cd8e435f22f"
+zzm="af494eb16992e0041dfe136a4b27503bb14e78406cfce70a75c9a9c31767c78f1b929e805377f70bac0fecaa0a19f62ff7f4a60472abe8f3a4c3679b03146cb5"
+
+find ./txscripts/ -type f -name "*.sh" | xargs chmod +x 
+find ./txscripts/ -type f -name "start*" | xargs chmod +x 
 
 cd ~/pack_image/peer-image
+
 cp -r ~/go/src/github.com/hyperledger/fabric/consensus .
 cp -r ~/go/src/github.com/hyperledger/fabric/core .
 cp -r ~/go/src/github.com/hyperledger/fabric/peer .
 cp -r ~/go/src/github.com/hyperledger/fabric/protos .
+rm -rf txscripts
 cp -r ~/go/src/github.com/hyperledger/fabric/txscripts .
 cp -r ~/go/src/github.com/hyperledger/fabric/examples/chaincode/go/chaincode_domain .
 rm -rf chaincode_dns_reslover
