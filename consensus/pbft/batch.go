@@ -40,7 +40,6 @@ import (
 	pb "github.com/hyperledger/fabric/protos"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/spf13/viper"
 )
 
@@ -672,7 +671,6 @@ func (op *obcBatch) leaderProcNVPReq(req *Request) events.Event {
 		}
 	}
 	op.reqStore.storeOutstanding(req)
-	op.startTimerIfOutstandingRequests()
 	return op.NormalProcReq(req)
 }
 
@@ -694,14 +692,12 @@ func (op *obcBatch) sendBatch() events.Event {
 }
 
 func (op *obcBatch) txToReq(tx []byte) *Request {
-	now := time.Now()
+	var _tx pb.Transaction
+	_ = proto.Unmarshal(tx, &_tx)
 	req := &Request{
-		Timestamp: &timestamp.Timestamp{
-			Seconds: now.Unix(),
-			Nanos:   int32(now.UnixNano() % 1000000000),
-		},
+		Timestamp: _tx.Timestamp,
 		Payload:   tx,
-		ReplicaId: op.pbft.id,
+		ReplicaId: 0,
 	}
 	// XXX sign req
 	return req
