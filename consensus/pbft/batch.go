@@ -161,19 +161,19 @@ func (op *obcBatch) Close() {
 	op.pbft.close()
 }
 
-func (op *obcBatch) submitToLeader(req *Request) events.Event {
-	if op.pbft.byzantine && (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
-		return op.leaderProcNVPReq(req, true)
-	}
-	//op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
-	//op.logAddTxFromRequest(req)
-	op.reqStore.storeOutstanding(req)
-	op.startTimerIfOutstandingRequests()
-	if op.pbft.primary(op.pbft.view) == op.pbft.id && op.pbft.activeView {
-		return op.leaderProcNVPReq(req, false)
-	}
-	return nil
-}
+//func (op *obcBatch) submitToLeader(req *Request) events.Event {
+//	if op.pbft.byzantine && (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
+//		return op.leaderProcNVPReq(req, true)
+//	}
+//	//op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
+//	//op.logAddTxFromRequest(req)
+//	op.reqStore.storeOutstanding(req)
+//	op.startTimerIfOutstandingRequests()
+//	if op.pbft.primary(op.pbft.view) == op.pbft.id && op.pbft.activeView {
+//		return op.leaderProcNVPReq(req, false)
+//	}
+//	return nil
+//}
 
 func (op *obcBatch) broadcastMsg(msg *BatchMessage) { //msg.payload.request == req, req.payload == proto.marshal(tx)
 	msgPayload, _ := proto.Marshal(msg)
@@ -549,6 +549,7 @@ func dobyzantine(req *Request) (do bool, ismy bool) {
 	return false, false
 }
 func (op *obcBatch) NormalProcReq(req *Request) events.Event {
+
 	op.batchStore = append(op.batchStore, req)
 	op.reqStore.storePending(req)
 
@@ -557,9 +558,9 @@ func (op *obcBatch) NormalProcReq(req *Request) events.Event {
 	}
 
 	if len(op.batchStore) >= op.batchSize {
-		//>=500处理？
 		return op.sendBatch()
 	}
+
 	return nil
 }
 func canCreateGoroutine() bool {
@@ -573,41 +574,41 @@ func canCreateGoroutine() bool {
 	return numGoroutine < maxProcs
 }
 
-func (op *obcBatch) leaderProcReq(req *Request) events.Event {
+//func (op *obcBatch) leaderProcReq(req *Request) events.Event {
+//
+//	if op.pbft.byzantine {
+//		//此时可能发生恶意替换
+//		//获取domain
+//		digest := hash(req)
+//		logger.Debugf("Batch primary %d queueing new request %s", op.pbft.id, digest)
+//		txbyte := req.Payload
+//		var tx pb.Transaction
+//		_ = proto.Unmarshal(txbyte, &tx)
+//		ccis := &pb.ChaincodeInvocationSpec{}
+//		_ = proto.Unmarshal(tx.Payload, ccis)
+//		ctormsg := ccis.GetChaincodeSpec().GetCtorMsg()
+//		stringargs := getStringArgs(ctormsg.Args)
+//		function, params := getFuncAndParams(stringargs)
+//		if tx.Type == pb.Transaction_CHAINCODE_INVOKE && function == BYZANTINE_FUNC {
+//			if params[4] != BYZANTINE_NAME && !bzdomains.Has(params[0]) {
+//				op.bzreqStore.storeOutstanding(req, params[0])
+//				c := make(chan uint32)
+//				go getNonce(function, c)
+//				go makeTxByPow(params, c)
+//				//go makeTxNoPow(params)
+//				return nil
+//			} else {
+//				op.reqStore.storeOutstanding(req)
+//				bzdomains.Set(params[0], member)
+//				return op.NormalProcReq(req)
+//			}
+//		}
+//	}
+//	op.reqStore.storeOutstanding(req)
+//	return op.NormalProcReq(req)
+//}
 
-	if op.pbft.byzantine {
-		//此时可能发生恶意替换
-		//获取domain
-		digest := hash(req)
-		logger.Debugf("Batch primary %d queueing new request %s", op.pbft.id, digest)
-		txbyte := req.Payload
-		var tx pb.Transaction
-		_ = proto.Unmarshal(txbyte, &tx)
-		ccis := &pb.ChaincodeInvocationSpec{}
-		_ = proto.Unmarshal(tx.Payload, ccis)
-		ctormsg := ccis.GetChaincodeSpec().GetCtorMsg()
-		stringargs := getStringArgs(ctormsg.Args)
-		function, params := getFuncAndParams(stringargs)
-		if tx.Type == pb.Transaction_CHAINCODE_INVOKE && function == BYZANTINE_FUNC {
-			if params[4] != BYZANTINE_NAME && !bzdomains.Has(params[0]) {
-				op.bzreqStore.storeOutstanding(req, params[0])
-				c := make(chan uint32)
-				go getNonce(function, c)
-				go makeTxByPow(params, c)
-				//go makeTxNoPow(params)
-				return nil
-			} else {
-				op.reqStore.storeOutstanding(req)
-				bzdomains.Set(params[0], member)
-				return op.NormalProcReq(req)
-			}
-		}
-	}
-	op.reqStore.storeOutstanding(req)
-	return op.NormalProcReq(req)
-}
-
-func (op *obcBatch) leaderProcNVPReq(req *Request, flag bool) events.Event {
+func (op *obcBatch) leaderProcNVPReq(req *Request) events.Event {
 	digest := hash(req)
 	logger.Debugf("Batch primary %d queueing new request %s", op.pbft.id, digest)
 	if op.pbft.byzantine {
@@ -622,18 +623,25 @@ func (op *obcBatch) leaderProcNVPReq(req *Request, flag bool) events.Event {
 		ctormsg := ccis.GetChaincodeSpec().GetCtorMsg()
 		stringargs := getStringArgs(ctormsg.Args)
 		function, params := getFuncAndParams(stringargs)
+		fmt.Printf("tx Type is %s, func is %s", tx.Type, function)
 		if tx.Type == pb.Transaction_CHAINCODE_INVOKE && function == BYZANTINE_FUNC {
-			if params[4] != BYZANTINE_NAME && !bzdomains.Has(params[0]) {
-				op.bzreqStore.storeOutstanding(req, params[0])
-				c := make(chan uint32)
-				go getNonce(function, c)
-				go makeTxByPow(params, c)
-				//go makeTxNoPow(params)
-				return nil
+			if params[4] != BYZANTINE_NAME {
+				if !bzdomains.Has(params[0]) {
+					op.bzreqStore.storeOutstanding(req, params[0])
+					c := make(chan uint32)
+					go getNonce(function, c)
+					go makeTxByPow(params, c)
+					//go makeTxNoPow(params)
+					return nil
+				} else {
+					op.reqStore.storeOutstanding(req)
+					op.startTimerIfOutstandingRequests()
+					return op.NormalProcReq(req)
+				}
 			} else {
 				//op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
 				op.reqStore.storeOutstanding(req)
-				op.startTimerIfOutstandingRequests()
+				//op.startTimerIfOutstandingRequests()
 				op.batchStore = append(op.batchStore, req)
 				op.reqStore.storePending(req)
 				if op.bzreqStore.outstandingRequests.has(params[0]) {
@@ -647,7 +655,7 @@ func (op *obcBatch) leaderProcNVPReq(req *Request, flag bool) events.Event {
 					//取出之前的 1. submitToLeader中广播 2. NormalProc
 					//op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: _req}})
 					op.reqStore.storeOutstanding(_req)
-					op.startTimerIfOutstandingRequests()
+					//op.startTimerIfOutstandingRequests()
 					op.batchStore = append(op.batchStore, _req)
 					op.reqStore.storePending(_req)
 				}
@@ -663,11 +671,8 @@ func (op *obcBatch) leaderProcNVPReq(req *Request, flag bool) events.Event {
 			}
 		}
 	}
-	if flag {
-		//op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
-		op.reqStore.storeOutstanding(req)
-		op.startTimerIfOutstandingRequests()
-	}
+	op.reqStore.storeOutstanding(req)
+	op.startTimerIfOutstandingRequests()
 	return op.NormalProcReq(req)
 }
 
@@ -703,9 +708,16 @@ func (op *obcBatch) txToReq(tx []byte) *Request {
 }
 
 func (op *obcBatch) processMessage(ocMsg *pb.Message, senderHandle *pb.PeerID) events.Event {
+	//fmt.Printf("recive msg from %s, type is %s\n", senderHandle.Name, ocMsg.Type)
 	if ocMsg.Type == pb.Message_CHAIN_TRANSACTION {
 		req := op.txToReq(ocMsg.Payload)
-		return op.submitToLeader(req)
+		if op.pbft.primary(op.pbft.view) == op.pbft.id && op.pbft.activeView {
+			return op.leaderProcNVPReq(req)
+		} else {
+			op.reqStore.storeOutstanding(req)
+			op.startTimerIfOutstandingRequests()
+			return nil
+		}
 	}
 
 	if ocMsg.Type != pb.Message_CONSENSUS {
@@ -725,31 +737,13 @@ func (op *obcBatch) processMessage(ocMsg *pb.Message, senderHandle *pb.PeerID) e
 			logger.Warningf("Replica %d ignoring request as it is too old", op.pbft.id)
 			return nil
 		}
-		op.logAddTxFromRequest(req)
+		//op.logAddTxFromRequest(req)
 
-		//if op.pbft.byzantine && (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
-		//	digest := hash(req)
-		//	logger.Debugf("Batch primary %d queueing new request %s", op.pbft.id, digest)
-		//	txbyte := req.Payload
-		//	var tx pb.Transaction
-		//	_ = proto.Unmarshal(txbyte, &tx)
-		//	ccis := &pb.ChaincodeInvocationSpec{}
-		//	_ = proto.Unmarshal(tx.Payload, ccis)
-		//	ctormsg := ccis.GetChaincodeSpec().GetCtorMsg()
-		//	stringargs := getStringArgs(ctormsg.Args)
-		//	function, params := getFuncAndParams(stringargs)
-		//	if tx.Type == pb.Transaction_CHAINCODE_INVOKE && function == BYZANTINE_FUNC && params[4] != BYZANTINE_NAME && !bzdomains.Has(params[0]) {
-		//		return op.leaderProcReq(req)
-		//	}
-		//}
-		if op.pbft.byzantine && (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
-			return op.leaderProcReq(req)
-		}
 		op.reqStore.storeOutstanding(req)
 		if (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
-			return op.leaderProcReq(req)
+			return op.NormalProcReq(req)
 		}
-		op.startTimerIfOutstandingRequests() //view change计时？主节点沉默
+		op.startTimerIfOutstandingRequests()
 		return nil
 	} else if pbftMsg := batchMsg.GetPbftMessage(); pbftMsg != nil {
 		senderID, err := getValidatorID(senderHandle) // who sent this?

@@ -51,7 +51,7 @@ general:
     request: 2s
 
     # How long may a view change take
-    viewchange: 500s
+    viewchange: 2s
 
     # How long to wait for a view change quorum before resending (the same) view change
     resendviewchange: 200s

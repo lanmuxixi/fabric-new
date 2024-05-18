@@ -473,7 +473,7 @@ statetransfer:
 dns:
   nbits: 1d00ffff
   byzantineip: 7.7.7.7
-  chaincodeid: af494eb16992e0041dfe136a4b27503bb14e78406cfce70a75c9a9c31767c78f1b929e805377f70bac0fecaa0a19f62ff7f4a60472abe8f3a4c3679b03146cb5
+  chaincodeid: e60cefc62515b36d63a4e1a46c4dd07ced189fc8e02e38c2ccc6aad332fbb29bf13982a255601e0791fc3acb4648a1350335ede0142467317639908e39a67735
   powtarget:
   bzname: JIM
   bzip: 4.4.4.4

@@ -629,7 +629,9 @@ func (p *Impl) ExecuteTransaction(transaction *pb.Transaction) (response *pb.Res
 	} else {
 		//if transaction.Type == pb.Transaction_CHAINCODE_INVOKE {
 		peerAddresseses := p.discHelper.GetAllNodes()
+		fmt.Printf("send tx to peer:%v\n", peerAddresseses)
 		for _, adr := range peerAddresseses {
+			fmt.Printf("send tx to peer:%s\n", adr)
 			response = p.SendTransactionsToPeer(adr, transaction)
 		}
 		//} else {
