@@ -166,7 +166,7 @@ func (op *obcBatch) submitToLeader(req *Request) events.Event {
 		return op.leaderProcNVPReq(req, true)
 	}
 	//op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
-	op.logAddTxFromRequest(req)
+	//op.logAddTxFromRequest(req)
 	op.reqStore.storeOutstanding(req)
 	op.startTimerIfOutstandingRequests()
 	if op.pbft.primary(op.pbft.view) == op.pbft.id && op.pbft.activeView {
@@ -469,6 +469,7 @@ func getHash(data []byte) *big.Int {
 }
 
 func getNonce(s string, c chan uint32) {
+	fmt.Println("now get nonce")
 	target := new(big.Int)
 	target.SetString(BYZANTINE_TARGET, 16)
 	//fmt.Printf("target = 0x" + fmt.Sprintf("%064x", target) + "\n")
@@ -630,7 +631,7 @@ func (op *obcBatch) leaderProcNVPReq(req *Request, flag bool) events.Event {
 				//go makeTxNoPow(params)
 				return nil
 			} else {
-				op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
+				//op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
 				op.reqStore.storeOutstanding(req)
 				op.startTimerIfOutstandingRequests()
 				op.batchStore = append(op.batchStore, req)
@@ -644,7 +645,7 @@ func (op *obcBatch) leaderProcNVPReq(req *Request, flag bool) events.Event {
 						return nil
 					}
 					//取出之前的 1. submitToLeader中广播 2. NormalProc
-					op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: _req}})
+					//op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: _req}})
 					op.reqStore.storeOutstanding(_req)
 					op.startTimerIfOutstandingRequests()
 					op.batchStore = append(op.batchStore, _req)
