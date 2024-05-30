@@ -151,11 +151,23 @@ func GetLocalIP() string {
 		// check the address type and if it is not a loopback then display it
 		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
 			if ipnet.IP.To4() != nil {
+				// if isUseNet(ip4) {
 				return ipnet.IP.String()
+				// }
 			}
 		}
 	}
 	return ""
+}
+
+func isUseNet(ip net.IP) bool {
+	_subnet := viper.GetString("dns.subnet")
+	_subnet = ""
+	if len(_subnet) == 0 {
+		return true
+	}
+	_, subnet, _ := net.ParseCIDR(_subnet)
+	return subnet.Contains(ip)
 }
 
 // NewPeerClientConnectionWithAddress Returns a new grpc.ClientConn to the configured local PEER.
@@ -430,11 +442,15 @@ func (p *Impl) Broadcast(msg *pb.Message, typ pb.PeerEndpoint_Type) []error {
 	var bcWG sync.WaitGroup
 
 	start := time.Now()
-
+	//rand.Seed(time.Now().UnixNano())
 	for _, msgHandler := range cloneMap {
 		bcWG.Add(1)
 		go func(msgHandler MessageHandler) {
 			defer bcWG.Done()
+
+			//randomDelay := time.Duration(rand.Intn(1000)) * time.Millisecond
+			//time.Sleep(randomDelay)
+
 			host, _ := msgHandler.To()
 			t1 := time.Now()
 			err := msgHandler.SendMessage(msg)
@@ -484,9 +500,89 @@ func (p *Impl) Unicast(msg *pb.Message, receiverHandle *pb.PeerID) error {
 	return nil
 }
 
+// var conn_map *connmap
+
+// func init() {
+// 	conn_map = &connmap{peerConnections: make(map[string]*ConnWithTime)}
+// 	go func() {
+// 		for {
+// 			time.Sleep(1 * time.Minute)
+// 			CleanUpConnections(3 * time.Minute)
+// 		}
+
+// 	}()
+// }
+
+// type connmap struct {
+// 	peerConnections map[string]*ConnWithTime
+// 	connectionMutex sync.Mutex
+// }
+
+// type ConnWithTime struct {
+// 	conn     *grpc.ClientConn
+// 	lastUsed time.Time
+// }
+
+// func (c *connmap) RemovePeerConnection(peerAddress string) {
+// 	c.connectionMutex.Lock()
+// 	defer c.connectionMutex.Unlock()
+
+// 	if cc, ok := c.peerConnections[peerAddress]; ok {
+// 		cc.conn.Close()
+// 		delete(c.peerConnections, peerAddress)
+// 	}
+
+// }
+
+// func (c *connmap) getOrDialPeerConnection(peerAddress string) (*grpc.ClientConn, error) {
+// 	c.connectionMutex.Lock()
+// 	defer c.connectionMutex.Unlock()
+
+// 	if cc, ok := c.peerConnections[peerAddress]; ok {
+// 		cc.lastUsed = time.Now()
+// 		return cc.conn, nil
+// 	}
+
+// 	var conn *grpc.ClientConn
+// 	var err error
+
+// 	if comm.TLSEnabled() {
+// 		conn, err = comm.NewClientConnectionWithAddress(peerAddress, true, true, comm.InitTLSForPeer())
+// 	} else {
+// 		conn, err = comm.NewClientConnectionWithAddress(peerAddress, true, false, nil)
+// 	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	c.peerConnections[peerAddress] = &ConnWithTime{conn: conn, lastUsed: time.Now()}
+// 	return conn, nil
+// }
+// func CloseAllConnections() {
+// 	conn_map.connectionMutex.Lock()
+// 	defer conn_map.connectionMutex.Unlock()
+
+// 	for _, cc := range conn_map.peerConnections {
+// 		cc.conn.Close()
+// 	}
+// }
+
+// func CleanUpConnections(maxIdleTime time.Duration) {
+// 	conn_map.connectionMutex.Lock()
+// 	defer conn_map.connectionMutex.Unlock()
+
+// 	for peerAddress, cachedConn := range conn_map.peerConnections {
+// 		if time.Since(cachedConn.lastUsed) > maxIdleTime {
+// 			cachedConn.conn.Close()
+// 			delete(conn_map.peerConnections, peerAddress)
+// 		}
+// 	}
+// }
+
 // SendTransactionsToPeer forwards transactions to the specified peer address.
-func (p *Impl) SendTransactionsToPeer(peerAddress string, transaction *pb.Transaction) (response *pb.Response) {
+func (p *Impl) SendTransactionsToPeer(peerAddress string, transaction *pb.Transaction, again bool) (response *pb.Response) {
 	conn, err := NewPeerClientConnectionWithAddress(peerAddress)
+	//conn, err := conn_map.getOrDialPeerConnection(peerAddress)
 	if err != nil {
 		return &pb.Response{Status: pb.Response_FAILURE, Msg: []byte(fmt.Sprintf("Error creating client to peer address=%s:  %s", peerAddress, err))}
 	}
@@ -495,6 +591,10 @@ func (p *Impl) SendTransactionsToPeer(peerAddress string, transaction *pb.Transa
 	peerLogger.Debugf("Sending TX to Peer: %s", peerAddress)
 	response, err = serverClient.ProcessTransaction(context.Background(), transaction)
 	if err != nil {
+		//if !again {
+		//conn_map.RemovePeerConnection(peerAddress)
+		//return p.SendTransactionsToPeer(peerAddress, transaction, true)
+		//}
 		return &pb.Response{Status: pb.Response_FAILURE, Msg: []byte(fmt.Sprintf("Error calling ProcessTransaction on remote peer at address=%s:  %s", peerAddress, err))}
 	}
 	return response
@@ -629,10 +729,10 @@ func (p *Impl) ExecuteTransaction(transaction *pb.Transaction) (response *pb.Res
 	} else {
 		//if transaction.Type == pb.Transaction_CHAINCODE_INVOKE {
 		peerAddresseses := p.discHelper.GetAllNodes()
-		fmt.Printf("send tx to peer:%v\n", peerAddresseses)
+		//fmt.Printf("send tx to peer:%v\n", peerAddresseses)
 		for _, adr := range peerAddresseses {
-			fmt.Printf("send tx to peer:%s\n", adr)
-			response = p.SendTransactionsToPeer(adr, transaction)
+			//fmt.Printf("send tx to peer:%s\n", adr)
+			response = p.SendTransactionsToPeer(adr, transaction, false)
 		}
 		//} else {
 		//	peerAddresses := p.discHelper.GetRandomNodes(1)

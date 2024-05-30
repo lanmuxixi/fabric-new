@@ -54,9 +54,9 @@ func TopLevelDomainUpdate(stub shim.ChaincodeStubInterface, args []string) ([]by
 	}
 	//check proof of work
 	nonce := args[7]
-	if args[6] != TARGET {
-		return nil, errors.New("target inconsistent with configuration!")
-	}
+	//if args[6] != TARGET {
+	//	return nil, errors.New("target inconsistent with configuration!")
+	//}
 	target := new(big.Int)
 	target.SetString(args[6], 16)
 	//fmt.Printf("target = 0x" + fmt.Sprintf("%064x", target) + "\n")

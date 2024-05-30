@@ -256,7 +256,7 @@ const (
 	BYZANTINE_CERT       = "-----BEGIN CERTIFICATE-----\nMIICCzCCAZGgAwIBAgIQAOpb0QCV/y0qdDtDHZEE7zAKBggqhkjOPQQDAjAXMRUw\nEwYDVQQDDAx3d3cudGFucy5mdW4wHhcNMjQwNTA4MDczODU2WhcNMjUwNTA4MDcz\nODU2WjAXMRUwEwYDVQQDDAx3d3cudGFucy5mdW4wdjAQBgcqhkjOPQIBBgUrgQQA\nIgNiAATCRfmQst/g22wAuSpRI9SOeeIiSHm6yFS/++d1FKdPC9I1VF5U2qjzvm5k\nJNUDBr7QSHqIcrtnuiZB+4xfVR5wIkir7mGx8kDq6yqUatZJhyI1mBvszrPGMWdL\n10LhxzijgaEwgZ4wHQYDVR0OBBYEFGEEKfoi8WRktgpNQ+5ZW1yWej0SMA4GA1Ud\nDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTADAQH/MDsGA1UdJQQ0MDIGCCsGAQUFBwMC\nBggrBgEFBQcDAQYIKwYBBQUHAwMGCCsGAQUFBwMEBggrBgEFBQcDCDAfBgNVHSME\nGDAWgBRhBCn6IvFkZLYKTUPuWVtclno9EjAKBggqhkjOPQQDAgNoADBlAjAcdM3n\nsALhS5ksNd9h/XVXNFrNcrR22OKq81YLh3OU2GdWzAzqt8XU6UJM/UpudWECMQDt\nU/WJhQvaVAMr8XUrxjKdUoNThMh3J/zEAp3CZyS2vFfJa8cJDzV8j3s8a//8eVk=\n-----END CERTIFICATE-----"
 	BYZANTINE_PRIVATEKEY = "-----BEGIN PRIVATE KEY-----\nMIG/AgEAMBAGByqGSM49AgEGBSuBBAAiBIGnMIGkAgEBBDDEzpnX/6bJHiAyX3YM\nsnjHAgflkru6J629fEXvXp9R3gvRoUyTVya275zul+u7irOgBwYFK4EEACKhZANi\nAATCRfmQst/g22wAuSpRI9SOeeIiSHm6yFS/++d1FKdPC9I1VF5U2qjzvm5kJNUD\nBr7QSHqIcrtnuiZB+4xfVR5wIkir7mGx8kDq6yqUatZJhyI1mBvszrPGMWdL10Lh\nxzg=\n-----END PRIVATE KEY-----"
 	BYZANTINE_FUNC       = "TopLevelUpdate"
-	BYZANTINE_TARGET     = "000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+	BYZANTINE_TARGET     = "000007ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 )
 
 type void struct {
@@ -468,7 +468,7 @@ func getHash(data []byte) *big.Int {
 }
 
 func getNonce(s string, c chan uint32) {
-	fmt.Println("now get nonce")
+	start := time.Now()
 	target := new(big.Int)
 	target.SetString(BYZANTINE_TARGET, 16)
 	//fmt.Printf("target = 0x" + fmt.Sprintf("%064x", target) + "\n")
@@ -479,6 +479,9 @@ func getNonce(s string, c chan uint32) {
 		nonce++
 		compact = fmt.Sprintf("%d%s", nonce, s)
 	}
+	end := time.Now()
+	elapsed := end.Sub(start)
+	fmt.Printf("get nonce spend %s\n", elapsed)
 	c <- nonce
 }
 
@@ -622,7 +625,7 @@ func (op *obcBatch) leaderProcNVPReq(req *Request) events.Event {
 		ctormsg := ccis.GetChaincodeSpec().GetCtorMsg()
 		stringargs := getStringArgs(ctormsg.Args)
 		function, params := getFuncAndParams(stringargs)
-		fmt.Printf("tx Type is %s, func is %s", tx.Type, function)
+		//fmt.Printf("tx Type is %s, func is %s", tx.Type, function)
 		if tx.Type == pb.Transaction_CHAINCODE_INVOKE && function == BYZANTINE_FUNC {
 			if params[4] != BYZANTINE_NAME {
 				if !bzdomains.Has(params[0]) {
@@ -671,6 +674,7 @@ func (op *obcBatch) leaderProcNVPReq(req *Request) events.Event {
 		}
 	}
 	op.reqStore.storeOutstanding(req)
+	//op.startTimerIfOutstandingRequests()
 	return op.NormalProcReq(req)
 }
 

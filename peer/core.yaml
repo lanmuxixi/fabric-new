@@ -473,7 +473,7 @@ statetransfer:
 dns:
   nbits: 1d00ffff
   byzantineip: 7.7.7.7
-  chaincodeid: e60cefc62515b36d63a4e1a46c4dd07ced189fc8e02e38c2ccc6aad332fbb29bf13982a255601e0791fc3acb4648a1350335ede0142467317639908e39a67735
+  chaincodeid: ecddd2c5226826d6458a006451880258121f3ba3cb376d6f195a740fcfa1f2a8e44dc9d6e7b5495fef768d32ea86b7abbb589b5078dcc915da0ef284ef318561
   powtarget:
   bzname: JIM
   bzip: 4.4.4.4
@@ -481,3 +481,4 @@ dns:
   bzprivatekey: -----BEGIN PRIVATE KEY-----\nMIG/AgEAMBAGByqGSM49AgEGBSuBBAAiBIGnMIGkAgEBBDDEzpnX/6bJHiAyX3YM\nsnjHAgflkru6J629fEXvXp9R3gvRoUyTVya275zul+u7irOgBwYFK4EEACKhZANi\nAATCRfmQst/g22wAuSpRI9SOeeIiSHm6yFS/++d1FKdPC9I1VF5U2qjzvm5kJNUD\nBr7QSHqIcrtnuiZB+4xfVR5wIkir7mGx8kDq6yqUatZJhyI1mBvszrPGMWdL10Lh\nxzg=\n-----END PRIVATE KEY-----
   updatefunction: TopLevelUpdate
   delayenable: false
+  subnet: 10.0.1.0/24

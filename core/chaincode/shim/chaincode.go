@@ -140,8 +140,54 @@ func getPeerAddress() string {
 	return peerAddress
 }
 
+// var cc_conn_map *connmap
+
+// func init() {
+// 	cc_conn_map = &connmap{peerConnections: make(map[string]*grpc.ClientConn)}
+// }
+
+// type connmap struct {
+// 	peerConnections map[string]*grpc.ClientConn
+// 	connectionMutex sync.Mutex
+// }
+
+// func (c *connmap) RemovePeerConnection(peerAddress string) {
+// 	c.connectionMutex.Lock()
+// 	defer c.connectionMutex.Unlock()
+
+// 	if conn, ok := c.peerConnections[peerAddress]; ok {
+// 		conn.Close()
+// 		delete(c.peerConnections, peerAddress)
+// 	}
+
+// }
+
+// func (c *connmap) getOrDialPeerConnection(peerAddress string) (*grpc.ClientConn, error) {
+// 	c.connectionMutex.Lock()
+// 	defer c.connectionMutex.Unlock()
+
+// 	if conn, ok := c.peerConnections[peerAddress]; ok {
+// 		return conn, nil
+// 	}
+
+// 	var conn *grpc.ClientConn
+// 	var err error
+
+// 	if comm.TLSEnabled() {
+// 		conn, err = comm.NewClientConnectionWithAddress(peerAddress, true, true, comm.InitTLSForPeer())
+// 	} else {
+// 		conn, err = comm.NewClientConnectionWithAddress(peerAddress, true, false, nil)
+// 	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	c.peerConnections[peerAddress] = conn
+// 	return conn, nil
+// }
 func newPeerClientConnection() (*grpc.ClientConn, error) {
 	var peerAddress = getPeerAddress()
+	//return cc_conn_map.getOrDialPeerConnection(peerAddress)
 	if comm.TLSEnabled() {
 		return comm.NewClientConnectionWithAddress(peerAddress, true, true, comm.InitTLSForPeer())
 	}
