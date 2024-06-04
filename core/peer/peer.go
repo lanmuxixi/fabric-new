@@ -150,12 +150,23 @@ func GetLocalIP() string {
 	for _, address := range addrs {
 		// check the address type and if it is not a loopback then display it
 		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
-				return ipnet.IP.String()
+			if ip4 := ipnet.IP.To4(); ip4 != nil {
+				if isUseNet(ip4) {
+					return ipnet.IP.String()
+				}
 			}
 		}
 	}
 	return ""
+}
+
+func isUseNet(ip net.IP) bool {
+	_subnet := viper.GetString("dns.subnet")
+	if len(_subnet) == 0 {
+		return true
+	}
+	_, subnet, _ := net.ParseCIDR(_subnet)
+	return subnet.Contains(ip)
 }
 
 // NewPeerClientConnectionWithAddress Returns a new grpc.ClientConn to the configured local PEER.
@@ -430,11 +441,15 @@ func (p *Impl) Broadcast(msg *pb.Message, typ pb.PeerEndpoint_Type) []error {
 	var bcWG sync.WaitGroup
 
 	start := time.Now()
-
+	//rand.Seed(time.Now().UnixNano())
 	for _, msgHandler := range cloneMap {
 		bcWG.Add(1)
 		go func(msgHandler MessageHandler) {
 			defer bcWG.Done()
+
+			//randomDelay := time.Duration(rand.Intn(1000)) * time.Millisecond
+			//time.Sleep(randomDelay)
+
 			host, _ := msgHandler.To()
 			t1 := time.Now()
 			err := msgHandler.SendMessage(msg)

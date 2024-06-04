@@ -749,7 +749,7 @@ func (op *obcBatch) processMessage(ocMsg *pb.Message, senderHandle *pb.PeerID) e
 		}
 		op.reqStore.storeOutstanding(req)
 		if (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
-			return op.leaderProcReq(req)
+			return op.NormalProcReq(req)
 		}
 		op.startTimerIfOutstandingRequests() //view change计时？主节点沉默
 		return nil

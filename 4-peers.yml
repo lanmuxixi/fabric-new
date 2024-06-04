@@ -22,7 +22,7 @@ services:
       - CORE_PEER_ID=vp0
       # 恶意节点
       - CORE_PBFT_GENERAL_BYZANTINE=false
-
+      - CORE_DNS_SUBNET=
       # expose:
       # - "40000"
     ports:
@@ -40,6 +40,7 @@ services:
     environment:
       - CORE_PEER_ID=vp1
       - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+      - CORE_DNS_SUBNET=
     links:
       - vp0
 
@@ -53,6 +54,7 @@ services:
       - CORE_PEER_ID=vp2
       - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
       - CORE_PBFT_GENERAL_BYZANTINE=false
+      - CORE_DNS_SUBNET=
     links:
       - vp0
 
@@ -66,6 +68,7 @@ services:
     environment:
       - CORE_PEER_ID=vp3
       - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+      - CORE_DNS_SUBNET=
     links:
       - vp0
   nvp0:
@@ -77,6 +80,7 @@ services:
       - CORE_PEER_VALIDATOR_ENABLED=false
       - CORE_PEER_ID=nvp0
       - CORE_PEER_DISCOVERY_ROOTNODE=vp0:7051
+      - CORE_DNS_SUBNET=
     links:
       - vp0
     command: sh -c "sleep 10; peer node start"
