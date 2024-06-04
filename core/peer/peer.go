@@ -150,10 +150,10 @@ func GetLocalIP() string {
 	for _, address := range addrs {
 		// check the address type and if it is not a loopback then display it
 		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
-				// if isUseNet(ip4) {
-				return ipnet.IP.String()
-				// }
+			if ip4 := ipnet.IP.To4(); ip4 != nil {
+				if isUseNet(ip4) {
+					return ipnet.IP.String()
+				}
 			}
 		}
 	}
@@ -162,7 +162,6 @@ func GetLocalIP() string {
 
 func isUseNet(ip net.IP) bool {
 	_subnet := viper.GetString("dns.subnet")
-	_subnet = ""
 	if len(_subnet) == 0 {
 		return true
 	}
