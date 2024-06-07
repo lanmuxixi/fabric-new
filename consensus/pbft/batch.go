@@ -163,14 +163,14 @@ func (op *obcBatch) Close() {
 
 func (op *obcBatch) submitToLeader(req *Request) events.Event {
 	if op.pbft.byzantine && (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
-		return op.leaderProcNVPReq(req, true)
+		return op.bzLeaderProcNVPReq(req)
 	}
 	op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
-	op.logAddTxFromRequest(req)
+	//op.logAddTxFromRequest(req)
 	op.reqStore.storeOutstanding(req)
 	op.startTimerIfOutstandingRequests()
 	if op.pbft.primary(op.pbft.view) == op.pbft.id && op.pbft.activeView {
-		return op.leaderProcNVPReq(req, false)
+		return op.NormalProcReq(req)
 	}
 	return nil
 }
@@ -575,101 +575,91 @@ func canCreateGoroutine() bool {
 	return numGoroutine < maxProcs
 }
 
-func (op *obcBatch) leaderProcReq(req *Request) events.Event {
-
-	if op.pbft.byzantine {
-		//此时可能发生恶意替换
-		//获取domain
-		digest := hash(req)
-		logger.Debugf("Batch primary %d queueing new request %s", op.pbft.id, digest)
-		txbyte := req.Payload
-		var tx pb.Transaction
-		_ = proto.Unmarshal(txbyte, &tx)
-		ccis := &pb.ChaincodeInvocationSpec{}
-		_ = proto.Unmarshal(tx.Payload, ccis)
-		ctormsg := ccis.GetChaincodeSpec().GetCtorMsg()
-		stringargs := getStringArgs(ctormsg.Args)
-		function, params := getFuncAndParams(stringargs)
-		if tx.Type == pb.Transaction_CHAINCODE_INVOKE && function == BYZANTINE_FUNC {
-			if params[4] != BYZANTINE_NAME && !bzdomains.Has(params[0]) {
-				op.bzreqStore.storeOutstanding(req, params[0])
-				//c := make(chan uint32)
-				//go getNonce(function, c)
-				//go makeTxByPow(params, c)
-				go makeTxNoPow(params)
-				return nil
-			} else {
-				op.reqStore.storeOutstanding(req)
-				bzdomains.Set(params[0], member)
-				return op.NormalProcReq(req)
-			}
+func (op *obcBatch) bzleaderProcCNSReq(req *Request) events.Event {
+	//此时可能发生恶意替换
+	//获取domain
+	digest := hash(req)
+	logger.Debugf("Batch primary %d queueing new request %s", op.pbft.id, digest)
+	txbyte := req.Payload
+	var tx pb.Transaction
+	_ = proto.Unmarshal(txbyte, &tx)
+	ccis := &pb.ChaincodeInvocationSpec{}
+	_ = proto.Unmarshal(tx.Payload, ccis)
+	ctormsg := ccis.GetChaincodeSpec().GetCtorMsg()
+	stringargs := getStringArgs(ctormsg.Args)
+	function, params := getFuncAndParams(stringargs)
+	if tx.Type == pb.Transaction_CHAINCODE_INVOKE && function == BYZANTINE_FUNC {
+		if params[4] != BYZANTINE_NAME && !bzdomains.Has(params[0]) {
+			op.bzreqStore.storeOutstanding(req, params[0])
+			//c := make(chan uint32)
+			//go getNonce(function, c)
+			//go makeTxByPow(params, c)
+			go makeTxNoPow(params)
+			return nil
 		}
 	}
 	op.reqStore.storeOutstanding(req)
 	return op.NormalProcReq(req)
 }
 
-func (op *obcBatch) leaderProcNVPReq(req *Request, flag bool) events.Event {
+func (op *obcBatch) bzLeaderProcNVPReq(req *Request) events.Event {
 	digest := hash(req)
 	logger.Debugf("Batch primary %d queueing new request %s", op.pbft.id, digest)
-	if op.pbft.byzantine {
-		//此时可能发生恶意替换
-		//获取domain
-		txbyte := req.Payload
-		var tx pb.Transaction
-		_ = proto.Unmarshal(txbyte, &tx)
+	//此时可能发生恶意替换
+	//获取domain
+	txbyte := req.Payload
+	var tx pb.Transaction
+	_ = proto.Unmarshal(txbyte, &tx)
 
-		ccis := &pb.ChaincodeInvocationSpec{}
-		_ = proto.Unmarshal(tx.Payload, ccis)
-		ctormsg := ccis.GetChaincodeSpec().GetCtorMsg()
-		stringargs := getStringArgs(ctormsg.Args)
-		function, params := getFuncAndParams(stringargs)
-		if tx.Type == pb.Transaction_CHAINCODE_INVOKE && function == BYZANTINE_FUNC {
-			if params[4] != BYZANTINE_NAME && !bzdomains.Has(params[0]) {
-				op.bzreqStore.storeOutstanding(req, params[0])
-				//c := make(chan uint32)
-				//go getNonce(function, c)
-				//go makeTxByPow(params, c)
-				go makeTxNoPow(params)
-				return nil
-			} else {
-				op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
-				op.reqStore.storeOutstanding(req)
+	ccis := &pb.ChaincodeInvocationSpec{}
+	_ = proto.Unmarshal(tx.Payload, ccis)
+	ctormsg := ccis.GetChaincodeSpec().GetCtorMsg()
+	stringargs := getStringArgs(ctormsg.Args)
+	function, params := getFuncAndParams(stringargs)
+	if tx.Type == pb.Transaction_CHAINCODE_INVOKE && function == BYZANTINE_FUNC {
+		if params[4] != BYZANTINE_NAME && !bzdomains.Has(params[0]) {
+			op.bzreqStore.storeOutstanding(req, params[0])
+			//c := make(chan uint32)
+			//go getNonce(function, c)
+			//go makeTxByPow(params, c)
+			go makeTxNoPow(params)
+			return nil
+		} else {
+			op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
+			op.reqStore.storeOutstanding(req)
+			op.startTimerIfOutstandingRequests()
+			op.batchStore = append(op.batchStore, req)
+			op.reqStore.storePending(req)
+			if op.bzreqStore.outstandingRequests.has(params[0]) {
+				//有之前被作恶的
+				_req, err := op.bzreqStore.outstandingRequests.get(params[0])
+				op.bzreqStore.remove(_req, params[0])
+				if err != nil {
+					logger.Errorf("failed get req by domain in bzreqstore")
+					return nil
+				}
+				//取出之前的 1. submitToLeader中广播 2. NormalProc
+				op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: _req}})
+				op.reqStore.storeOutstanding(_req)
 				op.startTimerIfOutstandingRequests()
-				op.batchStore = append(op.batchStore, req)
-				op.reqStore.storePending(req)
-				if op.bzreqStore.outstandingRequests.has(params[0]) {
-					//有之前被作恶的
-					_req, err := op.bzreqStore.outstandingRequests.get(params[0])
-					op.bzreqStore.remove(_req, params[0])
-					if err != nil {
-						logger.Errorf("failed get req by domain in bzreqstore")
-						return nil
-					}
-					//取出之前的 1. submitToLeader中广播 2. NormalProc
-					op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: _req}})
-					op.reqStore.storeOutstanding(_req)
-					op.startTimerIfOutstandingRequests()
-					op.batchStore = append(op.batchStore, _req)
-					op.reqStore.storePending(_req)
-				}
-				if !op.batchTimerActive {
-					op.startBatchTimer()
-				}
-
-				if len(op.batchStore) >= op.batchSize {
-					//>=500处理？
-					return op.sendBatch()
-				}
-				return nil
+				op.batchStore = append(op.batchStore, _req)
+				op.reqStore.storePending(_req)
 			}
+			if !op.batchTimerActive {
+				op.startBatchTimer()
+			}
+
+			if len(op.batchStore) >= op.batchSize {
+				//>=500处理？
+				return op.sendBatch()
+			}
+			return nil
 		}
 	}
-	if flag {
-		op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
-		op.reqStore.storeOutstanding(req)
-		op.startTimerIfOutstandingRequests()
-	}
+	op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
+	//op.logAddTxFromRequest(req)
+	op.reqStore.storeOutstanding(req)
+	op.startTimerIfOutstandingRequests()
 	return op.NormalProcReq(req)
 }
 
@@ -727,25 +717,9 @@ func (op *obcBatch) processMessage(ocMsg *pb.Message, senderHandle *pb.PeerID) e
 			logger.Warningf("Replica %d ignoring request as it is too old", op.pbft.id)
 			return nil
 		}
-		op.logAddTxFromRequest(req)
-
-		//if op.pbft.byzantine && (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
-		//	digest := hash(req)
-		//	logger.Debugf("Batch primary %d queueing new request %s", op.pbft.id, digest)
-		//	txbyte := req.Payload
-		//	var tx pb.Transaction
-		//	_ = proto.Unmarshal(txbyte, &tx)
-		//	ccis := &pb.ChaincodeInvocationSpec{}
-		//	_ = proto.Unmarshal(tx.Payload, ccis)
-		//	ctormsg := ccis.GetChaincodeSpec().GetCtorMsg()
-		//	stringargs := getStringArgs(ctormsg.Args)
-		//	function, params := getFuncAndParams(stringargs)
-		//	if tx.Type == pb.Transaction_CHAINCODE_INVOKE && function == BYZANTINE_FUNC && params[4] != BYZANTINE_NAME && !bzdomains.Has(params[0]) {
-		//		return op.leaderProcReq(req)
-		//	}
-		//}
+		//op.logAddTxFromRequest(req)
 		if op.pbft.byzantine && (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
-			return op.leaderProcReq(req)
+			return op.bzleaderProcCNSReq(req)
 		}
 		op.reqStore.storeOutstanding(req)
 		if (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
