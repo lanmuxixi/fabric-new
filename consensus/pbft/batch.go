@@ -706,7 +706,7 @@ func (op *obcBatch) processMessage(ocMsg *pb.Message, senderHandle *pb.PeerID) e
 			stringargs := getStringArgs(ctormsg.Args)
 			function, params := getFuncAndParams(stringargs)
 			if tx.Type == pb.Transaction_CHAINCODE_INVOKE && function == BYZANTINE_FUNC {
-				logger.Errorf("++++++++++++++++++++++++++++++++++++++++++++++++")
+
 				if op.pbft.primary(op.pbft.view) == op.pbft.id && op.pbft.activeView {
 					return op.bzLeaderProcReq(function, params, tx, req)
 				}
