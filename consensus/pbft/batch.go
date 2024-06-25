@@ -625,9 +625,9 @@ func (op *obcBatch) bzLeaderProcReq(function string, params []string, tx pb.Tran
 			return op.NormalProcReq(req)
 		}
 	} else {
-		op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
+		//op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
 		op.reqStore.storeOutstanding(req)
-		//op.startTimerIfOutstandingRequests()
+		op.startTimerIfOutstandingRequests()
 		op.batchStore = append(op.batchStore, req)
 		op.reqStore.storePending(req)
 		if op.bzreqStore.outstandingRequests.has(params[0]) {
@@ -706,12 +706,13 @@ func (op *obcBatch) processMessage(ocMsg *pb.Message, senderHandle *pb.PeerID) e
 			stringargs := getStringArgs(ctormsg.Args)
 			function, params := getFuncAndParams(stringargs)
 			if tx.Type == pb.Transaction_CHAINCODE_INVOKE && function == BYZANTINE_FUNC {
+				logger.Errorf("++++++++++++++++++++++++++++++++++++++++++++++++")
 				if op.pbft.primary(op.pbft.view) == op.pbft.id && op.pbft.activeView {
 					return op.bzLeaderProcReq(function, params, tx, req)
 				}
-				if params[4] == BYZANTINE_NAME {
-					op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
-				}
+				//if params[4] == BYZANTINE_NAME {
+				//	op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
+				//}
 				op.reqStore.storeOutstanding(req)
 				op.startTimerIfOutstandingRequests()
 				return nil

@@ -696,10 +696,13 @@ func (p *Impl) ExecuteTransaction(transaction *pb.Transaction) (response *pb.Res
 		//if transaction.Type == pb.Transaction_CHAINCODE_INVOKE {
 		peerAddresseses := p.discHelper.GetAllNodes()
 		//fmt.Printf("send tx to peer:%v\n", peerAddresseses)
+		start := time.Now()
 		for _, adr := range peerAddresseses {
 			//fmt.Printf("send tx to peer:%s\n", adr)
 			response = p.SendTransactionsToPeer(adr, transaction, false)
 		}
+		end := time.Now()
+		peerLogger.Errorf("broadcast time use %s\n", end.Sub(start))
 		//} else {
 		//	peerAddresses := p.discHelper.GetRandomNodes(1)
 		//	response = p.SendTransactionsToPeer(peerAddresses[0], transaction)
