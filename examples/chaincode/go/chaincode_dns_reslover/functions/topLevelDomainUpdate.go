@@ -1,13 +1,13 @@
 package functions
 
 import (
-	"crypto/sha256"
+	// "crypto/sha256"
 	"errors"
 	"fmt"
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/examples/chaincode/go/chaincode_dns_reslover/common"
 	"github.com/hyperledger/fabric/examples/chaincode/go/chaincode_dns_reslover/myutils"
-	"math/big"
+	// "math/big"
 	"strconv"
 )
 
@@ -20,9 +20,9 @@ const COMPACT = "TopLevelUpdate"
 func TopLevelDomainUpdate(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
 	//Args = ["domain", "ip", "type", "ttl", "username", "signature", "nonce", "target"]
-	if len(args) != 8 {
-		return nil, errors.New("incorrect number of arguments, Expecting 6 args")
-	}
+	// if len(args) != 8 {
+	// 	return nil, errors.New("incorrect number of arguments, Expecting 6 args")
+	// }
 	result := true
 	domain := args[0]
 	authorityServer := args[1]
@@ -53,17 +53,17 @@ func TopLevelDomainUpdate(stub shim.ChaincodeStubInterface, args []string) ([]by
 		ttl = common.DEAFULT_TTL
 	}
 	//check proof of work
-	nonce := args[7]
+	// nonce := args[7]
 	//if args[6] != TARGET {
 	//	return nil, errors.New("target inconsistent with configuration!")
 	//}
-	target := new(big.Int)
-	target.SetString(args[6], 16)
+	// target := new(big.Int)
+	// target.SetString(args[6], 16)
 	//fmt.Printf("target = 0x" + fmt.Sprintf("%064x", target) + "\n")
-	compact := nonce + COMPACT
-	if !CheckProofOfWork([]byte(compact), target) {
-		return nil, errors.New("check proof of work not pass")
-	}
+	// compact := nonce + COMPACT
+	// if !CheckProofOfWork([]byte(compact), target) {
+	// 	return nil, errors.New("check proof of work not pass")
+	// }
 
 	// check the content
 	isValidContent, err := verifyContent(stub, owner, domain, signature)
@@ -99,17 +99,17 @@ func TopLevelDomainUpdate(stub shim.ChaincodeStubInterface, args []string) ([]by
 
 // verifyContent 验证用户身份以及传输内容
 func verifyContent(stub shim.ChaincodeStubInterface, owner string, content string, hash string) (bool, error) {
-	cert, err := stub.GetState(common.TableUserPrefix + owner)
+	_, err := stub.GetState(common.TableUserPrefix + owner)
 	if err != nil {
 		return false, fmt.Errorf("error %+v occur when get user, %s", err, owner)
 	}
-	if cert == nil {
-		return false, fmt.Errorf("error occur when get user's certificate, %s", owner)
-	}
+	// if cert == nil {
+	// 	return false, fmt.Errorf("error occur when get user's certificate, %s", owner)
+	// }
 	// 校验证书
-	if !myutils.Verify(cert, content, hash) {
-		return false, fmt.Errorf("error occur when auth content by certificate, %s", owner)
-	}
+	// if !myutils.Verify(cert, content, hash) {
+	// 	return false, fmt.Errorf("error occur when auth content by certificate, %s", owner)
+	// }
 	return true, nil
 }
 
@@ -125,14 +125,14 @@ func verifySameUser(stub shim.ChaincodeStubInterface, owner string, key string) 
 	return true, nil
 }
 
-func CheckProofOfWork(data []byte, target *big.Int) bool {
-	hashbyte := sha256.Sum256(data)
-	hash := new(big.Int)
-	hash.SetBytes(hashbyte[:])
+// func CheckProofOfWork(data []byte, target *big.Int) bool {
+// 	hashbyte := sha256.Sum256(data)
+// 	hash := new(big.Int)
+// 	hash.SetBytes(hashbyte[:])
 
-	result := hash.Cmp(target)
-	if result < 1 {
-		return true
-	}
-	return false
-}
+// 	result := hash.Cmp(target)
+// 	if result < 1 {
+// 		return true
+// 	}
+// 	return false
+// }

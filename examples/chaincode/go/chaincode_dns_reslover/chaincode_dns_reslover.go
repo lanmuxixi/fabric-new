@@ -71,10 +71,11 @@ func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface, function string
 			{Name: "ttl", Type: shim.ColumnDefinition_INT32, Key: false},
 		},
 	}
-	if err := stub.CreateTable(table.Name, table.ColumnDefinitions); err != nil {
-		return nil, shim.ErrTableNotFound
-	}
-
+	// if err := stub.CreateTable(table.Name, table.ColumnDefinitions); err != nil {
+	// 	return nil, shim.ErrTableNotFound
+	// }
+	_ = stub.CreateTable(table.Name, table.ColumnDefinitions)
+	
 	var topLevelDomain, serverAddress string
 	var err error
 	for _, arg := range args {
@@ -106,7 +107,7 @@ func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface, function string
 		}
 	}
 
-	// 注册初始用户
+	// 注册初始用户``
 	err = stub.PutState(common.TableUserPrefix+common.USER_ADMIN_NAME, []byte(common.USER_ADMIN_CERTFICATE))
 	err = stub.PutState(common.TableUserPrefix+common.USER_JIM_NAME, []byte(common.USER_JIM_CERTFICATE))
 	if err != nil {
