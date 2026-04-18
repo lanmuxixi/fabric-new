@@ -225,6 +225,18 @@ peer:
 
 ###############################################################################
 #
+#    DNS section
+#
+###############################################################################
+dns:
+
+  # Optional IPv4 CIDR used by address auto-detection. In Docker Swarm or
+  # other multi-NIC deployments, set this to the subnet that peers should
+  # advertise to each other, for example 10.92.2.0/24.
+  subnet:
+
+###############################################################################
+#
 #    VM section
 #
 ###############################################################################

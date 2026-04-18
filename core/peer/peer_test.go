@@ -19,6 +19,7 @@ package peer
 import (
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"testing"
 	"time"
@@ -52,6 +53,32 @@ func TestMissingMessageHandlerUnicast(t *testing.T) {
 	err := peerImpl.Unicast(nil, &pb.PeerID{})
 	if err == nil {
 		t.Error("Expected error with bad receiver handle, but there was none")
+	}
+}
+
+func TestIsUseNet(t *testing.T) {
+	originalSubnet := viper.GetString("dns.subnet")
+	defer viper.Set("dns.subnet", originalSubnet)
+
+	ipInSubnet := net.ParseIP("10.92.2.138")
+	ipOutOfSubnet := net.ParseIP("172.18.0.5")
+
+	viper.Set("dns.subnet", "")
+	if !isUseNet(ipInSubnet) {
+		t.Fatal("Expected empty dns.subnet to allow all addresses")
+	}
+
+	viper.Set("dns.subnet", "10.92.2.0/24")
+	if !isUseNet(ipInSubnet) {
+		t.Fatal("Expected address inside dns.subnet to be accepted")
+	}
+	if isUseNet(ipOutOfSubnet) {
+		t.Fatal("Expected address outside dns.subnet to be rejected")
+	}
+
+	viper.Set("dns.subnet", "not-a-cidr")
+	if !isUseNet(ipInSubnet) {
+		t.Fatal("Expected invalid dns.subnet to fall back to allow-all behavior")
 	}
 }
 

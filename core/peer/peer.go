@@ -150,12 +150,29 @@ func GetLocalIP() string {
 	for _, address := range addrs {
 		// check the address type and if it is not a loopback then display it
 		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
-				return ipnet.IP.String()
+			if ip4 := ipnet.IP.To4(); ip4 != nil {
+				if isUseNet(ip4) {
+					return ipnet.IP.String()
+				}
 			}
 		}
 	}
 	return ""
+}
+
+func isUseNet(ip net.IP) bool {
+	subnetString := strings.TrimSpace(viper.GetString("dns.subnet"))
+	if subnetString == "" {
+		return true
+	}
+
+	_, subnet, err := net.ParseCIDR(subnetString)
+	if err != nil {
+		peerLogger.Warningf("Ignoring invalid dns.subnet %q: %s", subnetString, err)
+		return true
+	}
+
+	return subnet.Contains(ip)
 }
 
 // NewPeerClientConnectionWithAddress Returns a new grpc.ClientConn to the configured local PEER.
