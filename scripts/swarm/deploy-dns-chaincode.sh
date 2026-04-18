@@ -38,7 +38,7 @@ docker run --rm \
 
 printf '%s\n' "${deploy_output}" | tee "${CHAINCODE_DEPLOY_LOG}"
 
-chaincode_id="$(printf '%s\n' "${deploy_output}" | grep -Eo '[0-9a-f]{64,}' | head -n 1 || true)"
+chaincode_id="$(printf '%s\n' "${deploy_output}" | sed -n 's/^Deploy chaincode: //p' | tail -n 1 | tr -d '\r')"
 if [[ -n "${chaincode_id}" ]]; then
   printf '%s\n' "${chaincode_id}" > "${CHAINCODE_ID_FILE}"
   echo "Recorded chaincode name in ${CHAINCODE_ID_FILE}"

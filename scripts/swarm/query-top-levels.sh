@@ -17,7 +17,7 @@ fi
 : "${VP0_ENDPOINT:?Set VP0_ENDPOINT to the published gRPC endpoint of vp0, for example 10.92.2.138:7051.}"
 
 CHAINCODE_ID_FILE="${CHAINCODE_ID_FILE:-${REPO_ROOT}/deploy/swarm/last-chaincode-id.txt}"
-CHAINCODE_NAME="${CHAINCODE_NAME:-${ZZM:-}}"
+CHAINCODE_NAME="${CHAINCODE_NAME:-${ZZM:-${zzm:-}}}"
 if [[ -z "${CHAINCODE_NAME}" && -f "${CHAINCODE_ID_FILE}" ]]; then
   CHAINCODE_NAME="$(tr -d '\r\n' < "${CHAINCODE_ID_FILE}")"
 fi
