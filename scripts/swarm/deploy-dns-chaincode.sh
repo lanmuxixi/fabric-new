@@ -18,11 +18,14 @@ fi
 
 CHAINCODE_PATH="${CHAINCODE_PATH:-github.com/hyperledger/fabric/examples/chaincode/go/chaincode_dns_reslover}"
 CHAINCODE_CTOR="${CHAINCODE_CTOR:-{\"Function\":\"init\",\"Args\":[\"com:10.92.2.140:53\",\"cn:10.92.2.140:53\"]}}"
+CHAINCODE_DEPLOY_LOG="${CHAINCODE_DEPLOY_LOG:-${REPO_ROOT}/deploy/swarm/last-chaincode-deploy.log}"
+CHAINCODE_ID_FILE="${CHAINCODE_ID_FILE:-${REPO_ROOT}/deploy/swarm/last-chaincode-id.txt}"
 
 echo "Deploying ${CHAINCODE_PATH} against ${VP0_ENDPOINT}"
 echo "Ctor: ${CHAINCODE_CTOR}"
 echo "Save the returned chaincode name for later queries such as TopLevelGetAll."
 
+deploy_output="$(
 docker run --rm \
   -e CORE_PEER_ADDRESS="${VP0_ENDPOINT}" \
   -v "${REPO_ROOT}:/opt/gopath/src/github.com/hyperledger/fabric" \
@@ -31,3 +34,15 @@ docker run --rm \
   peer chaincode deploy \
     -p "${CHAINCODE_PATH}" \
     -c "${CHAINCODE_CTOR}"
+)"
+
+printf '%s\n' "${deploy_output}" | tee "${CHAINCODE_DEPLOY_LOG}"
+
+chaincode_id="$(printf '%s\n' "${deploy_output}" | grep -Eo '[0-9a-f]{64,}' | head -n 1 || true)"
+if [[ -n "${chaincode_id}" ]]; then
+  printf '%s\n' "${chaincode_id}" > "${CHAINCODE_ID_FILE}"
+  echo "Recorded chaincode name in ${CHAINCODE_ID_FILE}"
+else
+  echo "Warning: could not extract a chaincode name automatically." >&2
+  echo "Review ${CHAINCODE_DEPLOY_LOG} and write the returned chaincode name into ${CHAINCODE_ID_FILE}." >&2
+fi

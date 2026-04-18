@@ -58,10 +58,16 @@ The DNS chaincode on this branch now exposes:
 
 - `stack.yml`: 10 validating peers plus one Bind9 service
 - `.env.example`: deployment and placement variables
+- `bind/`: sample Bind9 config and initial `com` / `cn` zones
 - `../../scripts/swarm/build-peer-image.sh`: build and retag the peer image
 - `../../scripts/swarm/deploy-stack.sh`: create overlay network and deploy the stack
 - `../../scripts/swarm/remove-stack.sh`: remove the stack
 - `../../scripts/swarm/deploy-dns-chaincode.sh`: deploy the DNS chaincode through `vp0`
+- `../../scripts/swarm/query-top-levels.sh`: run the `TopLevelGetAll` verification query
+- `../../scripts/swarm/get-service-container.sh`: resolve the running container for a Swarm service
+- `../../scripts/swarm/exec-vp0.sh`: enter the `vp0` container shell
+- `../../scripts/swarm/prepare-bind-layout.sh`: install the sample Bind9 config on `dns-bind-01`
+- `../../scripts/swarm/dig-authority.sh`: verify DNS answers through Bind9
 
 ## Build
 
@@ -86,6 +92,12 @@ current setup runs with peer security disabled.
    - `${BIND_CONFIG_DIR}`
    - `${BIND_CACHE_DIR}`
    - `${BIND_RECORDS_DIR}`
+   Or just run:
+
+```bash
+./scripts/swarm/prepare-bind-layout.sh
+```
+
 4. Deploy:
 
 ```bash
@@ -116,9 +128,20 @@ The default ctor seeds:
 The deploy command prints the generated chaincode name. Save that value as
 `${zzm}` or another shell variable for later queries.
 
+The helper also writes:
+
+- the raw deploy output to `deploy/swarm/last-chaincode-deploy.log`
+- the detected chaincode name to `deploy/swarm/last-chaincode-id.txt`
+
 ## Verification query
 
-Replace `<CHAINCODE_NAME>` with the value returned by deploy:
+The shortest path is now:
+
+```bash
+./scripts/swarm/query-top-levels.sh
+```
+
+If you want to run it manually, replace `<CHAINCODE_NAME>` with the value returned by deploy:
 
 ```bash
 docker run --rm \
@@ -129,6 +152,20 @@ docker run --rm \
     -c '{"Function":"TopLevelGetAll","Args":[]}'
 ```
 
+## Locate and enter vp0
+
+The main deployment/query peer is `vp0`. To resolve its container ID on the manager:
+
+```bash
+./scripts/swarm/get-service-container.sh vp0
+```
+
+To enter that container directly:
+
+```bash
+./scripts/swarm/exec-vp0.sh
+```
+
 ## Bind9 / addToZone note
 
 The repository does not currently contain a standalone reusable `addToZone`
@@ -136,6 +173,12 @@ daemon. The current design therefore treats Bind9 itself as the authoritative
 DNS update/query endpoint and lets the chaincode talk to it directly through
 dynamic DNS update/query calls. If a separate sync helper is introduced later,
 it should consume the deployed chaincode name and run on `dns-bind-01`.
+
+Basic DNS verification from any host that has `dig`:
+
+```bash
+./scripts/swarm/dig-authority.sh www.example.com
+```
 
 ## Teardown
 
