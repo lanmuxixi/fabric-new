@@ -1,102 +1,124 @@
 # Swarm Experiment Runbook
 
-This directory contains the minimal deployment assets needed to run the
-current `feature/swarm-adaptation` branch on Docker Swarm.
+This directory now targets the 10-node Docker Swarm experiment described in
+the task brief:
 
-The stack is intentionally small:
+- `vp0` `vp1` `vp2` on `dns-fabric-01`
+- `vp3` `vp4` `vp5` on `dns-fabric-02`
+- `vp6` `vp7` on `dns-fabric-03`
+- `vp8` `vp9` plus Bind9 on `dns-bind-01`
 
-- 4 validating peers (`vp0` to `vp3`)
-- PBFT consensus
-- one attachable overlay network shared by peer services and dynamically
-  launched chaincode containers
-- one pinned peer per Swarm node hostname
+The stack keeps the multi-host PBFT shell from `feature/v0.6-multi-host`, but
+switches the DNS business logic to `examples/chaincode/go/chaincode_dns_reslover`
+from `feature/domain-reslover`.
 
-## Why this is different from the old compose files
+## Why the old compose files are not deployable as-is
 
-Fabric 0.6 launches chaincode as plain Docker containers through the host
-daemon. In Swarm, the peer service and the chaincode container must still end
-up on the same L2/L3 fabric. This stack does that by aligning:
+The historical files such as `peer.yml`, `4-peers.yml`, `10-peers.yml`, and
+`10vp_1nvp.yml` are useful reference material, but they are still Compose-era
+artifacts and cannot be used directly with `docker stack deploy` because they
+depend on:
 
-- the external overlay network name in `stack.yml`
+- `extends`
+- `links`
+- single-host Compose semantics
+- hardcoded image names and bootstrap assumptions
+
+The Swarm migration keeps their peer naming, PBFT sizing, and root-node
+discovery pattern, but rewrites the services as explicit Swarm services.
+
+## Networking constraints that matter
+
+Fabric 0.6 launches chaincode through the host Docker daemon. In Swarm, that
+means three things must agree:
+
+- the attachable overlay network name in `stack.yml`
 - `CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE`
-- the `dns.subnet` filter that `GetLocalIP()` now honors
+- the `dns.subnet` / `CORE_DNS_SUBNET` value used by `GetLocalIP()`
 
-Without those three pieces matching, peers in multi-NIC hosts often advertise
-the wrong IP or chaincode ends up on the wrong network.
+Without that alignment, peers on multi-NIC hosts often advertise the wrong IP
+or launch chaincode containers onto a network the peers cannot reach.
 
-## Current branch API
+## Current chaincode interface
 
-The checked-out branch is still based on `feature/bind9-support`, so the
-business chaincode interface here is the simpler one:
+The DNS chaincode on this branch now exposes:
 
 - `init`
-- `add`
+- `resolve`
+- `update`
 - `delete`
-- `resolveDomain`
+- `TopLevelQuest`
+- `TopLevelUpdate`
+- `TopLevelDelete`
+- `TopLevelGetAll`
 
-It does not expose the later `TopLevelUpdate` / `TopLevelGetAll` interface from
-the attack-defense branches.
+`TopLevelGetAll` is used as the basic verification query after deployment.
 
 ## Files
 
-- `stack.yml`: 4-peer Swarm stack
-- `.env.example`: deployment variables you should copy and edit
+- `stack.yml`: 10 validating peers plus one Bind9 service
+- `.env.example`: deployment and placement variables
 - `../../scripts/swarm/build-peer-image.sh`: build and retag the peer image
-- `../../scripts/swarm/deploy-stack.sh`: create overlay network and deploy stack
+- `../../scripts/swarm/deploy-stack.sh`: create overlay network and deploy the stack
 - `../../scripts/swarm/remove-stack.sh`: remove the stack
-- `../../scripts/swarm/deploy-dns-chaincode.sh`: deploy the DNS chaincode to
-  `vp0`
+- `../../scripts/swarm/deploy-dns-chaincode.sh`: deploy the DNS chaincode through `vp0`
 
-## Quick Start
+## Build
 
-1. On the Swarm manager, copy `.env.example` to `.env` and adjust:
-   - `FABRIC_PEER_IMAGE`
-   - `VP0_NODE` to `VP3_NODE`
-   - `CORE_DNS_SUBNET`
-   - `VP0_ENDPOINT`
-2. Build the peer image from this repo:
+The old `build_image.sh` from `feature/v0.6-multi-host` is not directly usable:
+it hardcodes old paths, an old `zzm`, and copies files into a separate image
+workspace. The replacement for this branch is:
 
 ```bash
 ./scripts/swarm/build-peer-image.sh
 ```
 
-3. Make the image available on every Swarm node:
-   - either push it to a registry and update `FABRIC_PEER_IMAGE`
-   - or export/load it manually on every node
-4. Deploy the stack:
+That script runs `make peer-image` in-repo and retags the resulting image for
+Swarm use. `membersrvc-image` is not required for this experiment because the
+current setup runs with peer security disabled.
+
+## Deploy the stack
+
+1. Copy `.env.example` to `.env` on the Swarm manager and adjust the image,
+   peer placement, and Bind9 paths.
+2. Make sure the peer image exists on every Swarm node.
+3. Make sure the Bind9 directories already exist on `dns-bind-01`:
+   - `${BIND_CONFIG_DIR}`
+   - `${BIND_CACHE_DIR}`
+   - `${BIND_RECORDS_DIR}`
+4. Deploy:
 
 ```bash
 ./scripts/swarm/deploy-stack.sh
 ```
 
-5. Confirm the services are healthy:
+5. Check status:
 
 ```bash
 docker stack services "${STACK_NAME:-fabricdns}"
+docker service ps "${STACK_NAME:-fabricdns}_vp0"
 docker service logs -f "${STACK_NAME:-fabricdns}_vp0"
 ```
 
 ## Deploy the DNS chaincode
 
-After `vp0` is up, deploy the chaincode from the manager:
+After `vp0` is healthy, deploy from the manager:
 
 ```bash
 ./scripts/swarm/deploy-dns-chaincode.sh
 ```
 
-Default ctor in `.env.example` initializes two top-level mappings:
+The default ctor seeds:
 
-- `com -> 10.92.2.140`
-- `cn -> 10.92.2.140`
+- `com -> 10.92.2.140:53`
+- `cn -> 10.92.2.140:53`
 
-Update `CHAINCODE_CTOR` if your authority server lives elsewhere.
+The deploy command prints the generated chaincode name. Save that value as
+`${zzm}` or another shell variable for later queries.
 
-The deploy command prints the generated chaincode name. Save that value for
-subsequent invoke/query commands.
+## Verification query
 
-## Example query
-
-Replace `<CHAINCODE_NAME>` with the name returned by the deploy command:
+Replace `<CHAINCODE_NAME>` with the value returned by deploy:
 
 ```bash
 docker run --rm \
@@ -104,8 +126,16 @@ docker run --rm \
   "${FABRIC_PEER_IMAGE}" \
   peer chaincode query \
     -n <CHAINCODE_NAME> \
-    -c '{"Function":"resolveDomain","Args":["www.example.com"]}'
+    -c '{"Function":"TopLevelGetAll","Args":[]}'
 ```
+
+## Bind9 / addToZone note
+
+The repository does not currently contain a standalone reusable `addToZone`
+daemon. The current design therefore treats Bind9 itself as the authoritative
+DNS update/query endpoint and lets the chaincode talk to it directly through
+dynamic DNS update/query calls. If a separate sync helper is introduced later,
+it should consume the deployed chaincode name and run on `dns-bind-01`.
 
 ## Teardown
 

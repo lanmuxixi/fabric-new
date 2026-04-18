@@ -35,7 +35,7 @@ type Record struct {
 type Response struct {
 	Code ResponseCode
 	Msg  string
-	Data map[string]string
+	Data map[string]interface{}
 }
 
 // GetTopLevelDomain returns the top level domain of a given domain
@@ -67,12 +67,12 @@ func CheckValidIp(ip string) bool {
 	if ip == "" {
 		return false
 	}
-	ipRegex := `^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$`
+	ipRegex := `^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(:\d{1,5})?$`
 	match, _ := regexp.MatchString(ipRegex, ip)
 	return match
 }
 
-func BuildResponse(status bool, message string, data map[string]string) []byte {
+func BuildResponse(status bool, message string, data map[string]interface{}) []byte {
 	var response Response
 	var responseJson []byte
 	var statusCode ResponseCode

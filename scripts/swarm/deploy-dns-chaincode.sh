@@ -17,7 +17,11 @@ fi
 : "${VP0_ENDPOINT:?Set VP0_ENDPOINT to the published gRPC endpoint of vp0, for example 10.92.2.138:7051.}"
 
 CHAINCODE_PATH="${CHAINCODE_PATH:-github.com/hyperledger/fabric/examples/chaincode/go/chaincode_dns_reslover}"
-CHAINCODE_CTOR="${CHAINCODE_CTOR:-{\"Function\":\"init\",\"Args\":[\"com:10.92.2.140\",\"cn:10.92.2.140\"]}}"
+CHAINCODE_CTOR="${CHAINCODE_CTOR:-{\"Function\":\"init\",\"Args\":[\"com:10.92.2.140:53\",\"cn:10.92.2.140:53\"]}}"
+
+echo "Deploying ${CHAINCODE_PATH} against ${VP0_ENDPOINT}"
+echo "Ctor: ${CHAINCODE_CTOR}"
+echo "Save the returned chaincode name for later queries such as TopLevelGetAll."
 
 docker run --rm \
   -e CORE_PEER_ADDRESS="${VP0_ENDPOINT}" \
