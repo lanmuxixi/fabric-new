@@ -58,6 +58,7 @@ The DNS chaincode on this branch now exposes:
 
 - `stack.yml`: 10 validating peers plus one Bind9 service
 - `.env.example`: deployment and placement variables
+- `EXPERIMENT_RUNBOOK.md`: ordered execution steps, checks, and common failures
 - `bind/`: sample Bind9 config and initial `com` / `cn` zones
 - `../../scripts/swarm/build-peer-image.sh`: build and retag the peer image
 - `../../scripts/swarm/deploy-stack.sh`: create overlay network and deploy the stack
