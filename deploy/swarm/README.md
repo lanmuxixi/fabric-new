@@ -1,47 +1,44 @@
-# Swarm Experiment Runbook
+# Swarm 实验说明
 
-This directory now targets the 10-node Docker Swarm experiment described in
-the task brief:
+当前目录对应的是任务说明中要求的 10 节点 Docker Swarm 实验版本：
 
-- `vp0` `vp1` `vp2` on `dns-fabric-01`
-- `vp3` `vp4` `vp5` on `dns-fabric-02`
-- `vp6` `vp7` on `dns-fabric-03`
-- `vp8` `vp9` plus Bind9 on `dns-bind-01`
+- `dns-fabric-01` 上部署 `vp0` `vp1` `vp2`
+- `dns-fabric-02` 上部署 `vp3` `vp4` `vp5`
+- `dns-fabric-03` 上部署 `vp6` `vp7`
+- `dns-bind-01` 上部署 `vp8` `vp9` 和 Bind9
 
-The stack keeps the multi-host PBFT shell from `feature/v0.6-multi-host`, but
-switches the DNS business logic to `examples/chaincode/go/chaincode_dns_reslover`
-from `feature/domain-reslover`.
+这套方案保留了 `feature/v0.6-multi-host` 中多机 PBFT 拓扑的思路，但 DNS 业务链码已经切换为 `feature/domain-reslover` 风格，对应目录是：
 
-## Why the old compose files are not deployable as-is
+- `examples/chaincode/go/chaincode_dns_reslover`
 
-The historical files such as `peer.yml`, `4-peers.yml`, `10-peers.yml`, and
-`10vp_1nvp.yml` are useful reference material, but they are still Compose-era
-artifacts and cannot be used directly with `docker stack deploy` because they
-depend on:
+## 为什么旧 compose 文件不能直接用
 
-- `extends`
-- `links`
-- single-host Compose semantics
-- hardcoded image names and bootstrap assumptions
+历史上的 `peer.yml`、`4-peers.yml`、`10-peers.yml`、`10vp_1nvp.yml` 可以作为参考，但不能直接用于 `docker stack deploy`，原因包括：
 
-The Swarm migration keeps their peer naming, PBFT sizing, and root-node
-discovery pattern, but rewrites the services as explicit Swarm services.
+- 依赖 `extends`
+- 依赖 `links`
+- 默认是单机 Compose 语义
+- 存在旧镜像名、旧启动方式和历史硬编码
 
-## Networking constraints that matter
+因此，当前分支不是“照搬旧 yml”，而是保留旧拓扑思路后，改写成明确的 Swarm service 定义。
 
-Fabric 0.6 launches chaincode through the host Docker daemon. In Swarm, that
-means three things must agree:
+## 当前网络设计的关键点
 
-- the attachable overlay network name in `stack.yml`
+Fabric 0.6 的链码是通过宿主机 Docker daemon 启动的。在 Swarm 环境中，下面三项必须保持一致：
+
+- `stack.yml` 中的 overlay 网络名
 - `CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE`
-- the `dns.subnet` / `CORE_DNS_SUBNET` value used by `GetLocalIP()`
+- `GetLocalIP()` 使用的 `dns.subnet` / `CORE_DNS_SUBNET`
 
-Without that alignment, peers on multi-NIC hosts often advertise the wrong IP
-or launch chaincode containers onto a network the peers cannot reach.
+如果这三项不一致，常见结果是：
 
-## Current chaincode interface
+- Peer 在多网卡环境下选错对外地址
+- 链码容器进入错误网络
+- Peer 与链码容器之间无法按预期通信
 
-The DNS chaincode on this branch now exposes:
+## 当前 DNS 链码接口
+
+本分支中的 DNS 链码当前支持以下接口：
 
 - `init`
 - `resolve`
@@ -52,60 +49,73 @@ The DNS chaincode on this branch now exposes:
 - `TopLevelDelete`
 - `TopLevelGetAll`
 
-`TopLevelGetAll` is used as the basic verification query after deployment.
+其中：
 
-## Files
+- `TopLevelGetAll` 是当前最重要的部署后验活查询接口
 
-- `stack.yml`: 10 validating peers plus one Bind9 service
-- `.env.example`: deployment and placement variables
-- `EXPERIMENT_RUNBOOK.md`: ordered execution steps, checks, and common failures
-- `bind/`: sample Bind9 config and initial `com` / `cn` zones
-- `../../scripts/swarm/build-peer-image.sh`: build and retag the peer image
-- `../../scripts/swarm/deploy-stack.sh`: create overlay network and deploy the stack
-- `../../scripts/swarm/remove-stack.sh`: remove the stack
-- `../../scripts/swarm/deploy-dns-chaincode.sh`: deploy the DNS chaincode through `vp0`
-- `../../scripts/swarm/query-top-levels.sh`: run the `TopLevelGetAll` verification query
-- `../../scripts/swarm/get-service-container.sh`: resolve the running container for a Swarm service
-- `../../scripts/swarm/exec-vp0.sh`: enter the `vp0` container shell
-- `../../scripts/swarm/prepare-bind-layout.sh`: install the sample Bind9 config on `dns-bind-01`
-- `../../scripts/swarm/dig-authority.sh`: verify DNS answers through Bind9
+## 目录内容
 
-## Build
+- `stack.yml`：10 个 validating peer 加 1 个 Bind9 服务的 Swarm 编排文件
+- `.env.example`：部署变量模板
+- `EXPERIMENT_RUNBOOK.md`：完整执行顺序、检查点和常见失败点
+- `bind/`：Bind9 样板配置与 `com` / `cn` 初始 zone 文件
+- `../../scripts/swarm/build-peer-image.sh`：构建并重打标签 peer 镜像
+- `../../scripts/swarm/deploy-stack.sh`：创建 overlay 网络并部署 stack
+- `../../scripts/swarm/remove-stack.sh`：删除 stack
+- `../../scripts/swarm/deploy-dns-chaincode.sh`：通过 `vp0` 部署 DNS 链码
+- `../../scripts/swarm/query-top-levels.sh`：执行 `TopLevelGetAll` 验证查询
+- `../../scripts/swarm/get-service-container.sh`：解析某个 Swarm service 对应的运行中容器
+- `../../scripts/swarm/exec-vp0.sh`：进入 `vp0` 容器
+- `../../scripts/swarm/prepare-bind-layout.sh`：在 `dns-bind-01` 上安装 Bind9 样板配置
+- `../../scripts/swarm/dig-authority.sh`：通过 Bind9 做 `dig` 验证
 
-The old `build_image.sh` from `feature/v0.6-multi-host` is not directly usable:
-it hardcodes old paths, an old `zzm`, and copies files into a separate image
-workspace. The replacement for this branch is:
+## 构建镜像
+
+`feature/v0.6-multi-host` 里的旧 `build_image.sh` 不建议继续直接使用，因为它存在这些问题：
+
+- 写死旧路径
+- 写死旧 `zzm`
+- 需要把代码复制到单独的镜像工作目录
+
+当前分支推荐的替代方式是：
 
 ```bash
 ./scripts/swarm/build-peer-image.sh
 ```
 
-That script runs `make peer-image` in-repo and retags the resulting image for
-Swarm use. `membersrvc-image` is not required for this experiment because the
-current setup runs with peer security disabled.
+该脚本会在当前仓库内执行 `make peer-image`，然后把生成的镜像重命名为适合 Swarm 使用的 tag。
 
-## Deploy the stack
+当前实验默认未启用 Fabric 安全模式，所以通常不需要再构建 `membersrvc-image`。
 
-1. Copy `.env.example` to `.env` on the Swarm manager and adjust the image,
-   peer placement, and Bind9 paths.
-2. Make sure the peer image exists on every Swarm node.
-3. Make sure the Bind9 directories already exist on `dns-bind-01`:
-   - `${BIND_CONFIG_DIR}`
-   - `${BIND_CACHE_DIR}`
-   - `${BIND_RECORDS_DIR}`
-   Or just run:
+## 部署 stack
+
+1. 在 Swarm manager 上把 `.env.example` 复制为 `.env`，并按实际环境调整镜像、节点放置和 Bind9 路径：
+
+```bash
+cp deploy/swarm/.env.example deploy/swarm/.env
+```
+
+2. 确保 peer 镜像已经存在于所有 Swarm 节点上。
+
+3. 确保 `dns-bind-01` 上的 Bind9 目录已经准备好：
+
+- `${BIND_CONFIG_DIR}`
+- `${BIND_CACHE_DIR}`
+- `${BIND_RECORDS_DIR}`
+
+也可以直接运行：
 
 ```bash
 ./scripts/swarm/prepare-bind-layout.sh
 ```
 
-4. Deploy:
+4. 部署 stack：
 
 ```bash
 ./scripts/swarm/deploy-stack.sh
 ```
 
-5. Check status:
+5. 检查部署状态：
 
 ```bash
 docker stack services "${STACK_NAME:-fabricdns}"
@@ -113,36 +123,33 @@ docker service ps "${STACK_NAME:-fabricdns}_vp0"
 docker service logs -f "${STACK_NAME:-fabricdns}_vp0"
 ```
 
-## Deploy the DNS chaincode
+## 部署 DNS 链码
 
-After `vp0` is healthy, deploy from the manager:
+确认 `vp0` 正常后，在 manager 上执行：
 
 ```bash
 ./scripts/swarm/deploy-dns-chaincode.sh
 ```
 
-The default ctor seeds:
+当前默认初始化内容为：
 
 - `com -> 10.92.2.140:53`
 - `cn -> 10.92.2.140:53`
 
-The deploy command prints the generated chaincode name. Save that value as
-`${zzm}` or another shell variable for later queries.
+deploy 成功后，脚本会做两件事：
 
-The helper also writes:
+- 把原始 deploy 输出写入 `deploy/swarm/last-chaincode-deploy.log`
+- 把识别到的链码名写入 `deploy/swarm/last-chaincode-id.txt`
 
-- the raw deploy output to `deploy/swarm/last-chaincode-deploy.log`
-- the detected chaincode name to `deploy/swarm/last-chaincode-id.txt`
+## 验证查询
 
-## Verification query
-
-The shortest path is now:
+最短路径是直接运行：
 
 ```bash
 ./scripts/swarm/query-top-levels.sh
 ```
 
-If you want to run it manually, replace `<CHAINCODE_NAME>` with the value returned by deploy:
+如果要手动执行，把 `<CHAINCODE_NAME>` 替换为 deploy 返回的链码名：
 
 ```bash
 docker run --rm \
@@ -153,35 +160,43 @@ docker run --rm \
     -c '{"Function":"TopLevelGetAll","Args":[]}'
 ```
 
-## Locate and enter vp0
+## 定位并进入 vp0
 
-The main deployment/query peer is `vp0`. To resolve its container ID on the manager:
+当前主部署 / 主查询节点是 `vp0`。
+
+在 manager 上获取其容器 ID：
 
 ```bash
 ./scripts/swarm/get-service-container.sh vp0
 ```
 
-To enter that container directly:
+直接进入该容器：
 
 ```bash
 ./scripts/swarm/exec-vp0.sh
 ```
 
-## Bind9 / addToZone note
+## Bind9 / addToZone 说明
 
-The repository does not currently contain a standalone reusable `addToZone`
-daemon. The current design therefore treats Bind9 itself as the authoritative
-DNS update/query endpoint and lets the chaincode talk to it directly through
-dynamic DNS update/query calls. If a separate sync helper is introduced later,
-it should consume the deployed chaincode name and run on `dns-bind-01`.
+当前仓库中并没有一个独立、可直接复用的 `addToZone` 守护进程。
 
-Basic DNS verification from any host that has `dig`:
+因此当前设计是：
+
+- 把 Bind9 作为权威 DNS 服务
+- 链码直接通过动态更新 / 查询与 Bind9 交互
+
+如果将来补一个单独的同步程序，它应当：
+
+- 运行在 `dns-bind-01`
+- 使用当前 deploy 返回的链码名进行联动
+
+最基本的 DNS 验证方式是：
 
 ```bash
 ./scripts/swarm/dig-authority.sh www.example.com
 ```
 
-## Teardown
+## 清理
 
 ```bash
 ./scripts/swarm/remove-stack.sh

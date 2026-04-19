@@ -1,41 +1,43 @@
-# Bind9 Layout for the Swarm Experiment
+# Swarm 实验中的 Bind9 目录说明
 
-These files are the starting point for the `bind9` service in `deploy/swarm/stack.yml`.
+本目录中的文件是 `deploy/swarm/stack.yml` 中 `bind9` 服务的样板配置起点。
 
-They assume:
+当前设计默认假设：
 
-- the authority DNS node is `dns-bind-01`
-- zone files live under `/var/lib/bind`
-- the Fabric DNS chaincode talks to Bind9 directly through dynamic update and query traffic
+- 权威 DNS 节点是 `dns-bind-01`
+- zone 文件挂载到 `/var/lib/bind`
+- Fabric DNS 链码通过动态更新 / 查询直接与 Bind9 交互
 
-## Install on dns-bind-01
+## 在 dns-bind-01 上安装
 
-From the pulled repository on `dns-bind-01`:
+在 `dns-bind-01` 上拉取当前分支代码后，执行：
 
 ```bash
 ./scripts/swarm/prepare-bind-layout.sh
 ```
 
-That script copies the sample config and zone files into the host paths configured by:
+该脚本会把当前目录中的样板配置和 zone 文件复制到宿主机路径，具体目标路径由以下变量控制：
 
 - `BIND_CONFIG_DIR`
 - `BIND_CACHE_DIR`
 - `BIND_RECORDS_DIR`
 
-## Dynamic update policy
+## 动态更新策略
 
-The sample zone config currently uses:
+当前样板 zone 配置中使用的是：
 
 ```txt
 allow-update { any; };
 ```
 
-That is deliberately permissive for an internal experiment. Tighten it before using this outside the lab.
+这是为了内网实验快速跑通而故意设置得比较宽松。
 
-## Files
+如果以后要在实验室以外或更严格环境中使用，应该改为更受限的更新策略。
 
-- `config/named.conf`: main Bind9 include file
-- `config/named.conf.options`: daemon options
-- `config/named.conf.local`: `com` and `cn` authority zones
-- `records/db.com`: initial `com` zone
-- `records/db.cn`: initial `cn` zone
+## 文件说明
+
+- `config/named.conf`：Bind9 主 include 文件
+- `config/named.conf.options`：Bind9 运行参数
+- `config/named.conf.local`：定义 `com` 和 `cn` 权威 zone
+- `records/db.com`：`com` 的初始 zone 文件
+- `records/db.cn`：`cn` 的初始 zone 文件

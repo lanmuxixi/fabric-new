@@ -1,11 +1,10 @@
-# 10-Node Swarm Experiment Runbook
+# 10 节点 Swarm 实验执行手册
 
-This file is the execution order for the current `feature/swarm-adaptation`
-branch after pulling it onto the 4 VMs.
+本文档给出当前 `feature/swarm-adaptation` 分支在 4 台 VM 上运行时的推荐执行顺序。
 
-## 1. Pull the latest code
+## 1. 拉取最新代码
 
-On every VM that hosts the repository:
+在所有持有该仓库的 VM 上执行：
 
 ```bash
 cd /root/go/src/github.com/hyperledger/fabric
@@ -13,51 +12,51 @@ git checkout feature/swarm-adaptation
 git pull origin feature/swarm-adaptation
 ```
 
-Expected result:
+预期结果：
 
-- local HEAD reaches the latest commit on `feature/swarm-adaptation`
+- 本地 HEAD 更新到 `feature/swarm-adaptation` 的最新提交
 
-Common failures:
+常见失败点：
 
-- local dirty working tree
-- wrong remote branch
-- repository path differs from the expected Fabric GOPATH path
+- 工作区不干净
+- 拉错远端分支
+- 仓库路径不在预期的 Fabric GOPATH 路径下
 
-Check:
+检查方法：
 
 ```bash
 git log --oneline -n 3
 git status --short
 ```
 
-## 2. Build the peer image
+## 2. 构建 peer 镜像
 
-Run this on a node that has Docker and the Fabric build toolchain available:
+在一台具备 Docker 和 Fabric 构建环境的机器上执行：
 
 ```bash
 ./scripts/swarm/build-peer-image.sh
 ```
 
-Expected result:
+预期结果：
 
-- `make peer-image` succeeds
-- the resulting image is retagged as `${FABRIC_PEER_IMAGE}`
+- `make peer-image` 成功
+- 生成的镜像被重新打标签为 `${FABRIC_PEER_IMAGE}`
 
-Common failures:
+常见失败点：
 
-- `make` toolchain incomplete
-- Docker daemon not reachable
-- old Fabric build dependencies missing
+- `make` 相关依赖不完整
+- Docker daemon 不可用
+- Fabric 0.6 的旧构建依赖缺失
 
-Check:
+检查方法：
 
 ```bash
 docker images | grep fabric-dns-peer
 ```
 
-## 3. Distribute the image to all 4 VMs
+## 3. 把镜像分发到 4 台 VM
 
-Use a registry or export/load manually. One workable manual path is:
+可以通过镜像仓库分发，也可以手动导出 / 复制 / 导入。一个可行的手动方案如下：
 
 ```bash
 docker save "${FABRIC_PEER_IMAGE}" -o /tmp/fabric-dns-peer-swarm.tar
@@ -66,52 +65,52 @@ scp /tmp/fabric-dns-peer-swarm.tar dns-fabric-03:/tmp/
 scp /tmp/fabric-dns-peer-swarm.tar dns-bind-01:/tmp/
 ```
 
-Then on each target VM:
+然后在每个目标节点执行：
 
 ```bash
 docker load -i /tmp/fabric-dns-peer-swarm.tar
 ```
 
-Expected result:
+预期结果：
 
-- all 4 VMs show the same `${FABRIC_PEER_IMAGE}`
+- 4 台 VM 都能看到相同 tag 的 `${FABRIC_PEER_IMAGE}`
 
-Common failures:
+常见失败点：
 
-- image tag mismatch with `.env`
-- image only exists on manager and not on workers
+- `.env` 中的镜像 tag 与实际加载镜像不一致
+- 镜像只存在于 manager，不存在于 worker
 
-## 4. Prepare `.env`
+## 4. 准备 `.env`
 
-On the Swarm manager (`dns-fabric-01`):
+在 Swarm manager（`dns-fabric-01`）上执行：
 
 ```bash
 cp deploy/swarm/.env.example deploy/swarm/.env
 vi deploy/swarm/.env
 ```
 
-Minimum values to verify:
+至少确认以下配置：
 
 - `FABRIC_PEER_IMAGE`
 - `CORE_DNS_SUBNET=10.92.2.0/24`
-- `VP0_NODE` to `VP9_NODE`
+- `VP0_NODE` 到 `VP9_NODE`
 - `VP0_ENDPOINT=10.92.2.138:7051`
-- `BIND_*` host directories
-- malicious marker flags such as `VP0_BYZANTINE`, `VP4_BYZANTINE`, `VP8_BYZANTINE`
+- `BIND_*` 目录配置
+- 恶意节点标记，例如 `VP0_BYZANTINE`、`VP4_BYZANTINE`、`VP8_BYZANTINE`
 
-Expected result:
+预期结果：
 
-- `.env` matches the current 4-VM layout
+- `.env` 与当前 4 台 VM 的实际布局一致
 
-Common failures:
+常见失败点：
 
-- stale IPs from old experiments
-- wrong node hostname values
-- `VP0_ENDPOINT` pointing to the wrong host
+- 仍然残留旧实验 IP
+- 节点 hostname 配错
+- `VP0_ENDPOINT` 指向了错误主机
 
-## 5. Prepare Bind9 on dns-bind-01
+## 5. 在 dns-bind-01 上准备 Bind9
 
-On `dns-bind-01`:
+在 `dns-bind-01` 上执行：
 
 ```bash
 cd /root/go/src/github.com/hyperledger/fabric
@@ -121,43 +120,43 @@ cp deploy/swarm/.env.example deploy/swarm/.env
 ./scripts/swarm/prepare-bind-layout.sh
 ```
 
-Expected result:
+预期结果：
 
-- config appears under `${BIND_CONFIG_DIR}`
-- zone files appear under `${BIND_RECORDS_DIR}`
+- Bind9 配置文件出现在 `${BIND_CONFIG_DIR}`
+- zone 文件出现在 `${BIND_RECORDS_DIR}`
 
-Common failures:
+常见失败点：
 
-- target directories not writable
-- wrong `.env` values on `dns-bind-01`
+- 目标目录没有写权限
+- `dns-bind-01` 上 `.env` 内容与 manager 不一致
 
-Check:
+检查方法：
 
 ```bash
 ls -R /opt/fabric-dns/bind
 ```
 
-## 6. Deploy the stack
+## 6. 部署 stack
 
-On the Swarm manager:
+在 Swarm manager 上执行：
 
 ```bash
 ./scripts/swarm/deploy-stack.sh
 ```
 
-Expected result:
+预期结果：
 
-- overlay network exists
-- services `vp0` to `vp9` plus `bind9` appear in the stack
+- overlay 网络存在
+- `vp0` 到 `vp9` 以及 `bind9` 服务都出现在 stack 中
 
-Common failures:
+常见失败点：
 
-- Swarm inactive on the manager
-- overlay network name mismatch
-- node placement constraint does not match actual Swarm hostnames
-- image missing on one or more workers
+- manager 上 Swarm 没有激活
+- overlay 网络名与配置不一致
+- `placement.constraints` 中的 hostname 与实际 Swarm 节点名不一致
+- 某些 worker 上没有对应镜像
 
-Check:
+检查方法：
 
 ```bash
 docker stack services "${STACK_NAME:-fabricdns}"
@@ -165,80 +164,80 @@ docker service ps "${STACK_NAME:-fabricdns}_vp0"
 docker service ps "${STACK_NAME:-fabricdns}_bind9"
 ```
 
-Logs:
+查看日志：
 
 ```bash
 docker service logs -f "${STACK_NAME:-fabricdns}_vp0"
 docker service logs -f "${STACK_NAME:-fabricdns}_bind9"
 ```
 
-## 7. Identify and enter the main peer container
+## 7. 定位并进入主 peer 容器
 
-`vp0` is the main deployment/query peer.
+当前部署和查询的主 peer 是 `vp0`。
 
-On the manager:
+在 manager 上执行：
 
 ```bash
 ./scripts/swarm/get-service-container.sh vp0
 ./scripts/swarm/exec-vp0.sh
 ```
 
-Expected result:
+预期结果：
 
-- the first command prints a running container ID
-- the second command opens a shell inside `vp0`
+- 第一个命令输出正在运行的容器 ID
+- 第二个命令进入 `vp0` 容器 shell
 
-Common failures:
+常见失败点：
 
-- `vp0` service not scheduled
-- `vp0` restarting repeatedly due PBFT or network config
+- `vp0` 服务没有调度成功
+- `vp0` 因 PBFT 或网络问题反复重启
 
-## 8. Deploy the DNS chaincode
+## 8. 部署 DNS 链码
 
-On the manager:
+在 manager 上执行：
 
 ```bash
 ./scripts/swarm/deploy-dns-chaincode.sh
 ```
 
-Expected result:
+预期结果：
 
-- deploy returns a chaincode name
-- deploy output is written to `deploy/swarm/last-chaincode-deploy.log`
-- detected chaincode name is written to `deploy/swarm/last-chaincode-id.txt`
+- deploy 成功返回链码名
+- deploy 输出写入 `deploy/swarm/last-chaincode-deploy.log`
+- 链码名写入 `deploy/swarm/last-chaincode-id.txt`
 
-Common failures:
+常见失败点：
 
-- `VP0_ENDPOINT` unreachable
-- peer cannot build the chaincode path
-- Fabric 0.6 Docker-in-Docker network mismatch
+- `VP0_ENDPOINT` 不可达
+- peer 找不到链码路径
+- Fabric 0.6 的链码容器网络没有进入预期网络
 
-Check:
+检查方法：
 
 ```bash
 cat deploy/swarm/last-chaincode-deploy.log
 cat deploy/swarm/last-chaincode-id.txt
 ```
 
-## 9. Query TopLevelGetAll
+## 9. 查询 TopLevelGetAll
 
-On the manager:
+在 manager 上执行：
 
 ```bash
 ./scripts/swarm/query-top-levels.sh
 ```
 
-Expected result:
+预期结果：
 
-- JSON-like response showing at least `com` and `cn` authority mappings
+- 返回类似 JSON 的结果，至少包含 `com` 和 `cn` 的权威 DNS 映射
 
-Common failures:
+常见失败点：
 
-- chaincode name file missing
-- chaincode deploy did not finish correctly
-- `vp0` gRPC endpoint incorrect
+- 链码名文件不存在
+- deploy 没有真正成功
+- `vp0` gRPC 地址配置错误
 
-Manual fallback:
+手动兜底方式：
 
 ```bash
 docker run --rm \
@@ -249,10 +248,9 @@ docker run --rm \
     -c '{"Function":"TopLevelGetAll","Args":[]}'
 ```
 
-## 10. Update a DNS record
+## 10. 更新一条 DNS 记录
 
-After deploy, use the returned chaincode name and run a chaincode invoke from the manager.
-Example for `www.example.com -> 10.92.2.138`:
+在 deploy 成功后，可以基于返回的链码名执行 invoke。下面给出一个例子，把 `www.example.com` 指向 `10.92.2.138`：
 
 ```bash
 docker run --rm \
@@ -263,43 +261,43 @@ docker run --rm \
     -c '{"Function":"update","Args":["www.example.com","10.92.2.138"]}'
 ```
 
-Expected result:
+预期结果：
 
-- invoke succeeds without PBFT timeout
+- invoke 不发生 PBFT 超时
 
-Common failures:
+常见失败点：
 
-- Bind9 not yet reachable at `10.92.2.140:53`
-- zone not configured for dynamic update
+- Bind9 在 `10.92.2.140:53` 还未真正可用
+- 当前 zone 没有开启动态更新
 
-## 11. Verify through Bind9
+## 11. 通过 Bind9 验证
 
-On any host with `dig`:
+在任意安装了 `dig` 的主机上执行：
 
 ```bash
 ./scripts/swarm/dig-authority.sh www.example.com
 ```
 
-Expected result:
+预期结果：
 
-- the updated A record is returned
+- 返回刚刚写入的 A 记录
 
-Common failures:
+常见失败点：
 
-- Bind9 service not listening on host port 53
-- chaincode invoke succeeded on ledger side but update did not reach Bind9
-- DNS cache confusion during repeated tests
+- Bind9 服务没有监听宿主机 53 端口
+- 链码 invoke 在账本层面成功，但更新没有真正写入 Bind9
+- 连续实验时被 DNS 缓存干扰
 
-Manual fallback:
+手动兜底方式：
 
 ```bash
 dig @10.92.2.140 www.example.com +short
 ```
 
-## 12. Main risk list
+## 12. 主要风险点
 
-- `GetLocalIP` and `CORE_DNS_SUBNET` must stay aligned with `10.92.2.0/24`
-- `feature/v0.6-multi-host` YAMLs are reference-only and cannot be deployed directly in Swarm
-- old scripts with hardcoded `zzm`, paths, or IPs must not be reused
-- Fabric 0.6 chaincode launch depends on host Docker networking and is sensitive to the overlay network name
-- the repository currently does not include a standalone reusable `addToZone` service, so Bind9 is the authority endpoint for now
+- `GetLocalIP` 与 `CORE_DNS_SUBNET` 必须保持在 `10.92.2.0/24`
+- `feature/v0.6-multi-host` 中的旧 YAML 只能参考，不能直接部署到 Swarm
+- 旧脚本中写死的 `zzm`、路径和 IP 不能继续复用
+- Fabric 0.6 的链码启动依赖宿主机 Docker 网络，对 overlay 网络名很敏感
+- 当前仓库没有独立可复用的 `addToZone` 服务，因此目前是由 Bind9 直接作为权威 DNS 端点
