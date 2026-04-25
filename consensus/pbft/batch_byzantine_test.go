@@ -122,3 +122,38 @@ func TestMaybeHijackTopLevelDeleteClearsHijackMarker(t *testing.T) {
 		t.Fatalf("unexpected domain key: %s", domainKey)
 	}
 }
+
+func TestHandleLeaderRequestQueuesByzantineRequestFirst(t *testing.T) {
+	op := &obcBatch{
+		pbft:             &pbftCore{id: 1, byzantine: true},
+		batchSize:        3,
+		batchTimerActive: true,
+		reqStore:         newRequestStore(),
+		bzDomains:        make(map[string]struct{}),
+	}
+
+	req := newTopLevelInvokeRequest(t, byzantineTopLevelFunction, "example.org", "10.92.2.140:53")
+	if event := op.handleLeaderRequest(req); event != nil {
+		t.Fatalf("expected batch to remain open, got %#v", event)
+	}
+
+	if len(op.batchStore) != 2 {
+		t.Fatalf("expected 2 queued requests, got %d", len(op.batchStore))
+	}
+
+	firstFunction, firstArgs := readInvokeArgs(t, op.batchStore[0])
+	if firstFunction != byzantineTopLevelFunction {
+		t.Fatalf("unexpected first function: %s", firstFunction)
+	}
+	if len(firstArgs) != 2 || firstArgs[0] != "example.org" || firstArgs[1] != defaultByzantineAuthority {
+		t.Fatalf("unexpected first request args: %#v", firstArgs)
+	}
+
+	secondFunction, secondArgs := readInvokeArgs(t, op.batchStore[1])
+	if secondFunction != byzantineTopLevelFunction {
+		t.Fatalf("unexpected second function: %s", secondFunction)
+	}
+	if len(secondArgs) != 2 || secondArgs[0] != "example.org" || secondArgs[1] != "10.92.2.140:53" {
+		t.Fatalf("unexpected second request args: %#v", secondArgs)
+	}
+}
