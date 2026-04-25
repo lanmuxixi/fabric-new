@@ -436,4 +436,170 @@ typedef struct {
 }
 ```
 
-但它不属于老师当前最关心的 6 类核心业务消息，因此放在附录中说明。
+它不属于老师当前最关心的 6 类核心业务消息，因此放在附录中说明。
+
+### 8.6 如果继续往下看，真正发给 DNS 服务器的 `send` 数据是什么
+
+如果老师继续追问“链码最终调用的 send 函数里，数据结构长什么样”，那么比起旧的 `AddDomain / DeleteDomain / ResolveDomain`，更应该看当前真实在主线里被调用的这 3 个函数：
+
+- `myutils.SendQuest`
+- `myutils.SendUpdate`
+- `myutils.SendRemoveName`
+
+它们对应的是链码在完成业务参数解析后，真正向 Bind9 发起请求时使用的下一层数据结构。
+
+#### 8.6.1 `SendQuest`
+
+真实函数签名：
+
+```go
+func SendQuest(domain string, dnsServer string, dnsPort string) ([]dns.A, error)
+```
+
+代码依据：
+
+- 函数定义：`examples/chaincode/go/chaincode_dns_reslover/myutils/netUtils.go:15`
+- 构造查询问题：`examples/chaincode/go/chaincode_dns_reslover/myutils/netUtils.go:18`
+
+等价 C 风格结构体：
+
+```c
+typedef struct {
+    char domain[256];      // 要查询的完整域名，例如 "www.example.com"
+    char dns_server[64];   // 目标权威 DNS 服务器 IP，例如 "10.92.2.140"
+    char dns_port[16];     // 目标权威 DNS 服务器端口，例如 "53"
+    char qtype[16];        // 查询类型，当前固定为 A
+} SendQuestMsg;
+```
+
+等价 JSON：
+
+```json
+{
+  "domain": "www.example.com",
+  "dns_server": "10.92.2.140",
+  "dns_port": "53",
+  "qtype": "A"
+}
+```
+
+字段说明：
+
+- `domain`：要查询的完整域名
+- `dns_server`：实际接收请求的权威 DNS 服务器 IP
+- `dns_port`：实际接收请求的权威 DNS 服务器端口
+- `qtype`：当前代码固定查询 A 记录
+
+#### 8.6.2 `SendUpdate`
+
+真实函数签名：
+
+```go
+func SendUpdate(zone string, domain string, ip string, dnsServer string, dnsPort string) (bool, error)
+```
+
+代码依据：
+
+- 函数定义：`examples/chaincode/go/chaincode_dns_reslover/myutils/netUtils.go:41`
+- 设置更新 zone：`examples/chaincode/go/chaincode_dns_reslover/myutils/netUtils.go:44`
+- 插入 RR：`examples/chaincode/go/chaincode_dns_reslover/myutils/netUtils.go:49`
+
+等价 C 风格结构体：
+
+```c
+typedef struct {
+    char zone[64];         // 顶级域 zone，例如 "com"
+    char domain[256];      // 完整域名，例如 "www.example.com"
+    char record_ip[64];    // 要写入的 A 记录 IP，例如 "10.92.2.138"
+    char dns_server[64];   // 目标权威 DNS 服务器 IP
+    char dns_port[16];     // 目标权威 DNS 服务器端口
+} SendUpdateMsg;
+```
+
+等价 JSON：
+
+```json
+{
+  "zone": "com",
+  "domain": "www.example.com",
+  "record_ip": "10.92.2.138",
+  "dns_server": "10.92.2.140",
+  "dns_port": "53"
+}
+```
+
+字段说明：
+
+- `zone`：DNS 更新所在的 zone，来自顶级域提取结果
+- `domain`：要新增或修改的完整域名
+- `record_ip`：要写入的 A 记录值
+- `dns_server`：实际接收更新请求的权威 DNS 服务器 IP
+- `dns_port`：实际接收更新请求的权威 DNS 服务器端口
+
+#### 8.6.3 `SendRemoveName`
+
+真实函数签名：
+
+```go
+func SendRemoveName(zone string, domain string, dnsServer string, dnsPort string) (bool, error)
+```
+
+代码依据：
+
+- 函数定义：`examples/chaincode/go/chaincode_dns_reslover/myutils/netUtils.go:83`
+- 设置更新 zone：`examples/chaincode/go/chaincode_dns_reslover/myutils/netUtils.go:86`
+- 删除名称：`examples/chaincode/go/chaincode_dns_reslover/myutils/netUtils.go:91`
+
+等价 C 风格结构体：
+
+```c
+typedef struct {
+    char zone[64];         // 顶级域 zone，例如 "com"
+    char domain[256];      // 要删除的完整域名，例如 "www.example.com"
+    char dns_server[64];   // 目标权威 DNS 服务器 IP
+    char dns_port[16];     // 目标权威 DNS 服务器端口
+} SendRemoveNameMsg;
+```
+
+等价 JSON：
+
+```json
+{
+  "zone": "com",
+  "domain": "www.example.com",
+  "dns_server": "10.92.2.140",
+  "dns_port": "53"
+}
+```
+
+字段说明：
+
+- `zone`：删除操作所在的 zone
+- `domain`：要删除的完整域名
+- `dns_server`：实际接收删除请求的权威 DNS 服务器 IP
+- `dns_port`：实际接收删除请求的权威 DNS 服务器端口
+
+#### 8.6.4 这 3 个 `send` 函数和正文 6 类消息的关系
+
+正文中的 6 类消息描述的是“链码入口收到的业务数据结构”，即：
+
+```json
+{
+  "Function": "...",
+  "Args": [...]
+}
+```
+
+本节中的 3 个 `send` 函数描述的是“链码把业务参数解析完成后，真正发给 Bind9 的下一层数据结构”。
+
+如果老师问的是：
+
+- “业务请求进链码时长什么样”
+
+就看正文 6 类消息。
+
+如果老师问的是：
+
+- “send 最终发给 DNS 服务器的数据长什么样”
+
+就看本节这 3 个 `Send...` 结构。

@@ -235,6 +235,10 @@ dns:
   # advertise to each other, for example 10.92.2.0/24.
   subnet:
 
+  # Authority server used by the experiment-2 byzantine primary when it
+  # rewrites a TopLevelUpdate request into a hijacked registration.
+  bzauthority:
+
 ###############################################################################
 #
 #    VM section

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
@@ -141,6 +142,27 @@ func TestTopLevelUpdateAndDelete(t *testing.T) {
 	}
 	if _, ok := stub.State["org"]; ok {
 		t.Fatalf("org should have been deleted")
+	}
+}
+
+func TestTopLevelUpdateRejectsDuplicateRegistration(t *testing.T) {
+	scc := new(SimpleChaincode)
+	stub := shim.NewMockStub("dns", scc)
+
+	mustInit(t, stub, "com:1.1.1.1")
+	updateResp := mustInvoke(t, stub, TopLevelUpdate, "example.org", "2.2.2.2:53")
+	if updateResp.Code != 0 {
+		t.Fatalf("unexpected update response: %+v", updateResp)
+	}
+
+	if _, err := stub.MockInvoke("2", TopLevelUpdate, []string{"another.org", "3.3.3.3:53"}); err == nil {
+		t.Fatal("expected duplicate top level registration to fail")
+	} else if !strings.Contains(err.Error(), "already registered") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got := string(stub.State["org"]); got != "2.2.2.2:53" {
+		t.Fatalf("unexpected stored org server after duplicate attempt: %s", got)
 	}
 }
 
