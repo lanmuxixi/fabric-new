@@ -632,6 +632,7 @@ func (op *obcBatch) ProcessEvent(event events.Event) events.Event {
 		return res
 	case viewChangedEvent:
 		op.batchStore = nil
+		op.bzDomains = make(map[string]struct{})
 		// Outstanding reqs doesn't make sense for batch, as all the requests in a batch may be processed
 		// in a different batch, but PBFT core can't see through the opaque structure to see this
 		// so, on view change, clear it out
@@ -675,6 +676,7 @@ func (op *obcBatch) ProcessEvent(event events.Event) events.Event {
 	case stateUpdatedEvent:
 		// When the state is updated, clear any outstanding requests, they may have been processed while we were gone
 		op.reqStore = newRequestStore()
+		op.bzDomains = make(map[string]struct{})
 		return op.pbft.ProcessEvent(event)
 	default:
 		return op.pbft.ProcessEvent(event)

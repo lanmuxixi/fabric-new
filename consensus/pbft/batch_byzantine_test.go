@@ -157,3 +157,38 @@ func TestHandleLeaderRequestQueuesByzantineRequestFirst(t *testing.T) {
 		t.Fatalf("unexpected second request args: %#v", secondArgs)
 	}
 }
+
+func TestViewChangedClearsByzantineMarkers(t *testing.T) {
+	omni := *inertState
+	omni.UnicastImpl = func(msg *pb.Message, receiverHandle *pb.PeerID) error { return nil }
+
+	b := newObcBatch(0, loadConfig(), &omni)
+	defer b.Close()
+	b.StateUpdated(&checkpointMessage{seqNo: 0, id: inertState.GetBlockchainInfoBlobImpl()}, inertState.GetBlockchainInfoImpl())
+
+	b.bzDomains["org"] = struct{}{}
+	b.ProcessEvent(viewChangedEvent{})
+
+	if len(b.bzDomains) != 0 {
+		t.Fatalf("expected byzantine domain markers to be cleared on view change, got %#v", b.bzDomains)
+	}
+}
+
+func TestStateUpdatedClearsByzantineMarkers(t *testing.T) {
+	omni := *inertState
+	omni.UnicastImpl = func(msg *pb.Message, receiverHandle *pb.PeerID) error { return nil }
+
+	b := newObcBatch(0, loadConfig(), &omni)
+	defer b.Close()
+	b.StateUpdated(&checkpointMessage{seqNo: 0, id: inertState.GetBlockchainInfoBlobImpl()}, inertState.GetBlockchainInfoImpl())
+
+	b.bzDomains["org"] = struct{}{}
+	b.ProcessEvent(stateUpdatedEvent{
+		chkpt:  &checkpointMessage{seqNo: 0, id: inertState.GetBlockchainInfoBlobImpl()},
+		target: inertState.GetBlockchainInfoImpl(),
+	})
+
+	if len(b.bzDomains) != 0 {
+		t.Fatalf("expected byzantine domain markers to be cleared on state update, got %#v", b.bzDomains)
+	}
+}
