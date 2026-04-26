@@ -98,3 +98,23 @@ func TestFindMissingElements(t *testing.T) {
 		}
 	}
 }
+
+func TestTopLevelUpdatePowHelpers(t *testing.T) {
+	target := DefaultTopLevelPowTarget
+	nonce, err := FindTopLevelUpdateNonce("example.org", "10.92.2.140:53", target)
+	if err != nil {
+		t.Fatalf("failed to compute nonce: %v", err)
+	}
+	if err := ValidateTopLevelUpdatePow("example.org", "10.92.2.140:53", target, nonce); err != nil {
+		t.Fatalf("expected valid pow, got %v", err)
+	}
+	if err := ValidateTopLevelUpdatePow("example.org", "10.92.2.141:53", target, nonce); err == nil {
+		t.Fatal("expected pow to be bound to authority server")
+	}
+}
+
+func TestValidateTopLevelUpdatePowRejectsWeakTarget(t *testing.T) {
+	if _, err := FindTopLevelUpdateNonce("example.org", "10.92.2.140:53", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); err == nil {
+		t.Fatal("expected weak target to be rejected")
+	}
+}

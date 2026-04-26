@@ -56,9 +56,15 @@ type obcBatch struct {
 
 	deduplicator *deduplicator
 
-	bzDomains map[string]struct{}
+	bzDomains      map[string]struct{}
+	bzHeldRequests map[string]*heldByzantineRequest
 
 	persistForward
+}
+
+type heldByzantineRequest struct {
+	original *Request
+	cancel   chan struct{}
 }
 
 type batchMessage struct {
@@ -73,6 +79,15 @@ type batchMessageEvent batchMessage
 
 // batchTimerEvent is sent when the batch timer expires
 type batchTimerEvent struct{}
+
+type byzantinePowReadyEvent struct {
+	domainKey string
+	request   *Request
+}
+
+type byzantinePowFailedEvent struct {
+	domainKey string
+}
 
 const (
 	byzantineTopLevelFunction   = "TopLevelUpdate"
@@ -135,6 +150,7 @@ func newObcBatch(id uint64, config *viper.Viper, stack consensus.Stack) *obcBatc
 
 	op.deduplicator = newDeduplicator()
 	op.bzDomains = make(map[string]struct{})
+	op.bzHeldRequests = make(map[string]*heldByzantineRequest)
 
 	op.idleChan = make(chan struct{})
 	close(op.idleChan) // TODO remove eventually
@@ -319,64 +335,143 @@ func (op *obcBatch) byzantineAuthority() string {
 	return defaultByzantineAuthority
 }
 
-func (op *obcBatch) maybeHijackTopLevelUpdate(req *Request) (*Request, string, bool, error) {
+func (op *obcBatch) releaseByzantineDomain(domainKey string) *Request {
+	held, ok := op.bzHeldRequests[domainKey]
+	if ok {
+		delete(op.bzHeldRequests, domainKey)
+		close(held.cancel)
+		op.reqStore.pendingRequests.remove(held.original)
+	}
+	delete(op.bzDomains, domainKey)
+	if held == nil {
+		return nil
+	}
+	return held.original
+}
+
+func (op *obcBatch) takeHeldByzantineRequest(domainKey string) *Request {
+	held, ok := op.bzHeldRequests[domainKey]
+	if !ok {
+		return nil
+	}
+	delete(op.bzHeldRequests, domainKey)
+	return held.original
+}
+
+func (op *obcBatch) resetByzantineTracking() {
+	for domainKey, held := range op.bzHeldRequests {
+		delete(op.bzHeldRequests, domainKey)
+		close(held.cancel)
+	}
+	op.bzDomains = make(map[string]struct{})
+}
+
+func (op *obcBatch) buildByzantineTopLevelRequest(txType pb.Transaction_Type, invocation *pb.ChaincodeInvocationSpec, domain string, target string, nonce string) (*Request, error) {
+	rewritten := proto.Clone(invocation).(*pb.ChaincodeInvocationSpec)
+	rewritten.ChaincodeSpec.CtorMsg.Args = util.ToChaincodeArgs(byzantineTopLevelFunction, domain, op.byzantineAuthority(), target, nonce)
+
+	byzantineTx, err := pb.NewChaincodeExecute(rewritten, util.GenerateUUID(), txType)
+	if err != nil {
+		return nil, err
+	}
+	payload, err := proto.Marshal(byzantineTx)
+	if err != nil {
+		return nil, err
+	}
+	return op.txToReq(payload), nil
+}
+
+func (op *obcBatch) startByzantinePowWorker(domainKey string, txType pb.Transaction_Type, invocation *pb.ChaincodeInvocationSpec, domain string, target string, cancel <-chan struct{}) {
+	authority := op.byzantineAuthority()
+	go func() {
+		targetValue, err := util.ParseTopLevelPowTarget(target)
+		if err != nil {
+			logger.Warningf("PBFT byzantine primary %d received invalid pow target for %s: %s", op.pbft.id, domainKey, err)
+			op.manager.Queue() <- byzantinePowFailedEvent{domainKey: domainKey}
+			return
+		}
+
+		for nonce := uint64(0); ; nonce++ {
+			select {
+			case <-cancel:
+				return
+			default:
+			}
+
+			nonceStr := fmt.Sprintf("%d", nonce)
+			if !util.TopLevelUpdatePowMeetsTarget(domain, authority, nonceStr, targetValue) {
+				continue
+			}
+
+			byzantineReq, err := op.buildByzantineTopLevelRequest(txType, invocation, domain, target, nonceStr)
+			if err != nil {
+				logger.Warningf("PBFT byzantine primary %d failed to build rewritten request for %s: %s", op.pbft.id, domainKey, err)
+				op.manager.Queue() <- byzantinePowFailedEvent{domainKey: domainKey}
+				return
+			}
+
+			op.manager.Queue() <- byzantinePowReadyEvent{domainKey: domainKey, request: byzantineReq}
+			return
+		}
+	}()
+}
+
+func (op *obcBatch) maybeHijackTopLevelUpdate(req *Request) (bool, string, error) {
 	tx := &pb.Transaction{}
 	if err := proto.Unmarshal(req.Payload, tx); err != nil {
-		return nil, "", false, err
+		return false, "", err
 	}
 	if tx.Type != pb.Transaction_CHAINCODE_INVOKE {
-		return nil, "", false, nil
+		return false, "", nil
 	}
 
 	invocation := &pb.ChaincodeInvocationSpec{}
 	if err := proto.Unmarshal(tx.Payload, invocation); err != nil {
-		return nil, "", false, err
+		return false, "", err
 	}
 	if invocation.GetChaincodeSpec() == nil || invocation.GetChaincodeSpec().GetCtorMsg() == nil {
-		return nil, "", false, nil
+		return false, "", nil
 	}
 
 	function, params := getFunctionAndParams(getStringArgs(invocation.GetChaincodeSpec().GetCtorMsg().Args))
 	switch function {
 	case byzantineTopLevelDelete:
 		if len(params) == 1 {
-			delete(op.bzDomains, topLevelKey(params[0]))
+			op.releaseByzantineDomain(topLevelKey(params[0]))
 		}
-		return nil, "", false, nil
+		return false, "", nil
 	case byzantineTopLevelFunction:
 	default:
-		return nil, "", false, nil
+		return false, "", nil
 	}
 
-	if len(params) != 2 {
-		return nil, "", false, nil
+	if len(params) != 4 {
+		return false, "", nil
 	}
 
 	domainKey := topLevelKey(params[0])
 	if domainKey == "" {
-		return nil, "", false, nil
+		return false, "", nil
 	}
 	if params[1] == op.byzantineAuthority() {
-		return nil, "", false, nil
+		return false, "", nil
 	}
 	if _, exists := op.bzDomains[domainKey]; exists {
-		return nil, "", false, nil
+		return false, "", nil
 	}
 
-	rewritten := proto.Clone(invocation).(*pb.ChaincodeInvocationSpec)
-	rewritten.ChaincodeSpec.CtorMsg.Args = util.ToChaincodeArgs(function, params[0], op.byzantineAuthority())
-
-	byzantineTx, err := pb.NewChaincodeExecute(rewritten, util.GenerateUUID(), tx.Type)
-	if err != nil {
-		return nil, "", false, err
-	}
-	payload, err := proto.Marshal(byzantineTx)
-	if err != nil {
-		return nil, "", false, err
+	if err := util.ValidateTopLevelUpdatePow(params[0], params[1], params[2], params[3]); err != nil {
+		return false, "", nil
 	}
 
 	op.bzDomains[domainKey] = struct{}{}
-	return op.txToReq(payload), domainKey, true, nil
+	op.bzHeldRequests[domainKey] = &heldByzantineRequest{
+		original: req,
+		cancel:   make(chan struct{}),
+	}
+	op.reqStore.storePending(req)
+	op.startByzantinePowWorker(domainKey, tx.Type, proto.Clone(invocation).(*pb.ChaincodeInvocationSpec), params[0], params[2], op.bzHeldRequests[domainKey].cancel)
+	return true, domainKey, nil
 }
 
 func (op *obcBatch) queueBatchRequest(req *Request) {
@@ -403,15 +498,12 @@ func (op *obcBatch) normalLeaderProcReq(req *Request) events.Event {
 
 func (op *obcBatch) handleLeaderRequest(req *Request) events.Event {
 	if op.pbft.byzantine {
-		byzantineReq, domainKey, hijacked, err := op.maybeHijackTopLevelUpdate(req)
+		hijacked, domainKey, err := op.maybeHijackTopLevelUpdate(req)
 		if err != nil {
 			logger.Warningf("PBFT byzantine primary %d failed to rewrite request: %s", op.pbft.id, err)
 		} else if hijacked {
-			logger.Warningf("PBFT byzantine primary %d hijacking top level registration for %s", op.pbft.id, domainKey)
-			op.reqStore.storeOutstanding(byzantineReq)
-			op.queueBatchRequest(byzantineReq)
-			op.queueBatchRequest(req)
-			return op.maybeSendBatch()
+			logger.Warningf("PBFT byzantine primary %d delaying top level registration for %s while recomputing pow", op.pbft.id, domainKey)
+			return nil
 		}
 	}
 
@@ -625,6 +717,29 @@ func (op *obcBatch) ProcessEvent(event events.Event) events.Event {
 		if op.pbft.activeView && (len(op.batchStore) > 0) {
 			return op.sendBatch()
 		}
+	case byzantinePowReadyEvent:
+		originalReq := op.takeHeldByzantineRequest(et.domainKey)
+		if originalReq == nil {
+			return nil
+		}
+		if op.pbft.primary(op.pbft.view) != op.pbft.id || !op.pbft.activeView || !op.pbft.byzantine {
+			return nil
+		}
+
+		logger.Warningf("PBFT byzantine primary %d forged pow for %s and is queueing the rewritten request first", op.pbft.id, et.domainKey)
+		op.reqStore.storeOutstanding(et.request)
+		op.queueBatchRequest(et.request)
+		op.queueBatchRequest(originalReq)
+		return op.maybeSendBatch()
+	case byzantinePowFailedEvent:
+		originalReq := op.releaseByzantineDomain(et.domainKey)
+		if originalReq == nil {
+			return nil
+		}
+		if op.pbft.primary(op.pbft.view) == op.pbft.id && op.pbft.activeView {
+			return op.normalLeaderProcReq(originalReq)
+		}
+		return nil
 	case *Commit:
 		// TODO, this is extremely hacky, but should go away when batch and core are merged
 		res := op.pbft.ProcessEvent(event)
@@ -632,7 +747,7 @@ func (op *obcBatch) ProcessEvent(event events.Event) events.Event {
 		return res
 	case viewChangedEvent:
 		op.batchStore = nil
-		op.bzDomains = make(map[string]struct{})
+		op.resetByzantineTracking()
 		// Outstanding reqs doesn't make sense for batch, as all the requests in a batch may be processed
 		// in a different batch, but PBFT core can't see through the opaque structure to see this
 		// so, on view change, clear it out
@@ -676,7 +791,7 @@ func (op *obcBatch) ProcessEvent(event events.Event) events.Event {
 	case stateUpdatedEvent:
 		// When the state is updated, clear any outstanding requests, they may have been processed while we were gone
 		op.reqStore = newRequestStore()
-		op.bzDomains = make(map[string]struct{})
+		op.resetByzantineTracking()
 		return op.pbft.ProcessEvent(event)
 	default:
 		return op.pbft.ProcessEvent(event)

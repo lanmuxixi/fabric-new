@@ -18,6 +18,7 @@ fi
 
 DOMAIN="${1:?Usage: $0 <request-domain> <authority-server>}"
 AUTHORITY_SERVER="${2:?Usage: $0 <request-domain> <authority-server>}"
+POW_TARGET="${DNS_POW_TARGET:-00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff}"
 
 CHAINCODE_ID_FILE="${CHAINCODE_ID_FILE:-${REPO_ROOT}/deploy/swarm/last-chaincode-id.txt}"
 CHAINCODE_NAME="${CHAINCODE_NAME:-${ZZM:-${zzm:-}}}"
@@ -27,9 +28,12 @@ fi
 
 : "${CHAINCODE_NAME:?Set CHAINCODE_NAME or CHAINCODE_ID_FILE before invoking.}"
 
+NONCE="$(python3 "${SCRIPT_DIR}/calc-top-level-pow.py" "${DOMAIN}" "${AUTHORITY_SERVER}" "${POW_TARGET}")"
+echo "Computed TopLevelUpdate PoW nonce=${NONCE} target=${POW_TARGET}"
+
 docker run --rm \
   -e CORE_PEER_ADDRESS="${VP0_ENDPOINT}" \
   "${FABRIC_PEER_IMAGE}" \
   peer chaincode invoke \
     -n "${CHAINCODE_NAME}" \
-    -c "{\"Function\":\"TopLevelUpdate\",\"Args\":[\"${DOMAIN}\",\"${AUTHORITY_SERVER}\"]}"
+    -c "{\"Function\":\"TopLevelUpdate\",\"Args\":[\"${DOMAIN}\",\"${AUTHORITY_SERVER}\",\"${POW_TARGET}\",\"${NONCE}\"]}"

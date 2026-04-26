@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
+	fabricutil "github.com/hyperledger/fabric/core/util"
 	"github.com/hyperledger/fabric/examples/chaincode/go/chaincode_dns_reslover/functions"
 )
 
@@ -94,6 +95,15 @@ func decodeResponse(t *testing.T, payload []byte) responseEnvelope {
 	return response
 }
 
+func mustTopLevelNonce(t *testing.T, domain string, authority string) string {
+	t.Helper()
+	nonce, err := fabricutil.FindTopLevelUpdateNonce(domain, authority, fabricutil.DefaultTopLevelPowTarget)
+	if err != nil {
+		t.Fatalf("failed to compute top-level nonce: %v", err)
+	}
+	return nonce
+}
+
 func TestInitStoresAuthorityServers(t *testing.T) {
 	scc := new(SimpleChaincode)
 	stub := shim.NewMockStub("dns", scc)
@@ -128,7 +138,7 @@ func TestTopLevelUpdateAndDelete(t *testing.T) {
 	stub := shim.NewMockStub("dns", scc)
 
 	mustInit(t, stub, "com:1.1.1.1")
-	updateResp := mustInvoke(t, stub, TopLevelUpdate, "example.org", "2.2.2.2:53")
+	updateResp := mustInvoke(t, stub, TopLevelUpdate, "example.org", "2.2.2.2:53", fabricutil.DefaultTopLevelPowTarget, mustTopLevelNonce(t, "example.org", "2.2.2.2:53"))
 	if updateResp.Code != 0 {
 		t.Fatalf("unexpected update response: %+v", updateResp)
 	}
@@ -150,12 +160,12 @@ func TestTopLevelUpdateRejectsDuplicateRegistration(t *testing.T) {
 	stub := shim.NewMockStub("dns", scc)
 
 	mustInit(t, stub, "com:1.1.1.1")
-	updateResp := mustInvoke(t, stub, TopLevelUpdate, "example.org", "2.2.2.2:53")
+	updateResp := mustInvoke(t, stub, TopLevelUpdate, "example.org", "2.2.2.2:53", fabricutil.DefaultTopLevelPowTarget, mustTopLevelNonce(t, "example.org", "2.2.2.2:53"))
 	if updateResp.Code != 0 {
 		t.Fatalf("unexpected update response: %+v", updateResp)
 	}
 
-	if _, err := stub.MockInvoke("2", TopLevelUpdate, []string{"another.org", "3.3.3.3:53"}); err == nil {
+	if _, err := stub.MockInvoke("2", TopLevelUpdate, []string{"another.org", "3.3.3.3:53", fabricutil.DefaultTopLevelPowTarget, mustTopLevelNonce(t, "another.org", "3.3.3.3:53")}); err == nil {
 		t.Fatal("expected duplicate top level registration to fail")
 	} else if !strings.Contains(err.Error(), "already registered") {
 		t.Fatalf("unexpected error: %v", err)
@@ -163,6 +173,19 @@ func TestTopLevelUpdateRejectsDuplicateRegistration(t *testing.T) {
 
 	if got := string(stub.State["org"]); got != "2.2.2.2:53" {
 		t.Fatalf("unexpected stored org server after duplicate attempt: %s", got)
+	}
+}
+
+func TestTopLevelUpdateRejectsInvalidPow(t *testing.T) {
+	scc := new(SimpleChaincode)
+	stub := shim.NewMockStub("dns", scc)
+
+	mustInit(t, stub, "com:1.1.1.1")
+	wrongNonce := mustTopLevelNonce(t, "example.org", "9.9.9.9:53")
+	if _, err := stub.MockInvoke("1", TopLevelUpdate, []string{"example.org", "2.2.2.2:53", fabricutil.DefaultTopLevelPowTarget, wrongNonce}); err == nil {
+		t.Fatal("expected invalid pow to fail")
+	} else if !strings.Contains(err.Error(), "proof of work") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

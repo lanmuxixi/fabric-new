@@ -46,14 +46,25 @@ func readInvokeArgs(t *testing.T, req *Request) (string, []string) {
 	return getFunctionAndParams(getStringArgs(invocation.GetChaincodeSpec().GetCtorMsg().Args))
 }
 
-func TestMaybeHijackTopLevelUpdateRewritesAuthority(t *testing.T) {
+func mustTopLevelNonce(t *testing.T, domain string, authority string) string {
+	t.Helper()
+	nonce, err := util.FindTopLevelUpdateNonce(domain, authority, util.DefaultTopLevelPowTarget)
+	if err != nil {
+		t.Fatalf("failed to compute nonce: %v", err)
+	}
+	return nonce
+}
+
+func TestMaybeHijackTopLevelUpdateHoldsOriginalRequest(t *testing.T) {
 	op := &obcBatch{
-		pbft:      &pbftCore{id: 1},
-		bzDomains: make(map[string]struct{}),
+		pbft:           &pbftCore{id: 1},
+		reqStore:       newRequestStore(),
+		bzDomains:      make(map[string]struct{}),
+		bzHeldRequests: make(map[string]*heldByzantineRequest),
 	}
 
-	req := newTopLevelInvokeRequest(t, byzantineTopLevelFunction, "example.org", "10.92.2.140:53")
-	byzantineReq, domainKey, hijacked, err := op.maybeHijackTopLevelUpdate(req)
+	req := newTopLevelInvokeRequest(t, byzantineTopLevelFunction, "example.org", "10.92.2.140:53", util.DefaultTopLevelPowTarget, mustTopLevelNonce(t, "example.org", "10.92.2.140:53"))
+	hijacked, domainKey, err := op.maybeHijackTopLevelUpdate(req)
 	if err != nil {
 		t.Fatalf("maybeHijackTopLevelUpdate failed: %v", err)
 	}
@@ -63,37 +74,31 @@ func TestMaybeHijackTopLevelUpdateRewritesAuthority(t *testing.T) {
 	if domainKey != "org" {
 		t.Fatalf("unexpected domain key: %s", domainKey)
 	}
-
-	function, args := readInvokeArgs(t, byzantineReq)
-	if function != byzantineTopLevelFunction {
-		t.Fatalf("unexpected function: %s", function)
+	if _, exists := op.bzHeldRequests["org"]; !exists {
+		t.Fatal("expected original request to be held while pow is recomputed")
 	}
-	if len(args) != 2 {
-		t.Fatalf("unexpected args: %#v", args)
-	}
-	if args[0] != "example.org" {
-		t.Fatalf("unexpected domain: %s", args[0])
-	}
-	if args[1] != defaultByzantineAuthority {
-		t.Fatalf("unexpected byzantine authority: %s", args[1])
+	if !op.reqStore.pendingRequests.has(hash(req)) {
+		t.Fatal("expected held request to be marked pending")
 	}
 }
 
 func TestMaybeHijackTopLevelUpdateOnlyOncePerDomain(t *testing.T) {
 	op := &obcBatch{
-		pbft:      &pbftCore{id: 1},
-		bzDomains: make(map[string]struct{}),
+		pbft:           &pbftCore{id: 1},
+		reqStore:       newRequestStore(),
+		bzDomains:      make(map[string]struct{}),
+		bzHeldRequests: make(map[string]*heldByzantineRequest),
 	}
 
-	first := newTopLevelInvokeRequest(t, byzantineTopLevelFunction, "example.org", "10.92.2.140:53")
-	if _, _, hijacked, err := op.maybeHijackTopLevelUpdate(first); err != nil {
+	first := newTopLevelInvokeRequest(t, byzantineTopLevelFunction, "example.org", "10.92.2.140:53", util.DefaultTopLevelPowTarget, mustTopLevelNonce(t, "example.org", "10.92.2.140:53"))
+	if hijacked, _, err := op.maybeHijackTopLevelUpdate(first); err != nil {
 		t.Fatalf("first hijack failed: %v", err)
 	} else if !hijacked {
 		t.Fatal("expected first request to be hijacked")
 	}
 
-	second := newTopLevelInvokeRequest(t, byzantineTopLevelFunction, "another.org", "10.92.2.150:53")
-	if _, _, hijacked, err := op.maybeHijackTopLevelUpdate(second); err != nil {
+	second := newTopLevelInvokeRequest(t, byzantineTopLevelFunction, "another.org", "10.92.2.150:53", util.DefaultTopLevelPowTarget, mustTopLevelNonce(t, "another.org", "10.92.2.150:53"))
+	if hijacked, _, err := op.maybeHijackTopLevelUpdate(second); err != nil {
 		t.Fatalf("second hijack failed: %v", err)
 	} else if hijacked {
 		t.Fatal("expected second request for the same top-level domain to be ignored")
@@ -102,19 +107,28 @@ func TestMaybeHijackTopLevelUpdateOnlyOncePerDomain(t *testing.T) {
 
 func TestMaybeHijackTopLevelDeleteClearsHijackMarker(t *testing.T) {
 	op := &obcBatch{
-		pbft:      &pbftCore{id: 1},
-		bzDomains: map[string]struct{}{"org": {}},
+		pbft:           &pbftCore{id: 1},
+		reqStore:       newRequestStore(),
+		bzDomains:      map[string]struct{}{"org": {}},
+		bzHeldRequests: make(map[string]*heldByzantineRequest),
 	}
 
+	heldReq := newTopLevelInvokeRequest(t, byzantineTopLevelFunction, "example.org", "10.92.2.140:53", util.DefaultTopLevelPowTarget, mustTopLevelNonce(t, "example.org", "10.92.2.140:53"))
+	op.bzHeldRequests["org"] = &heldByzantineRequest{original: heldReq, cancel: make(chan struct{})}
+	op.reqStore.storePending(heldReq)
+
 	deleteReq := newTopLevelInvokeRequest(t, byzantineTopLevelDelete, "example.org")
-	if _, _, hijacked, err := op.maybeHijackTopLevelUpdate(deleteReq); err != nil {
+	if hijacked, _, err := op.maybeHijackTopLevelUpdate(deleteReq); err != nil {
 		t.Fatalf("delete processing failed: %v", err)
 	} else if hijacked {
 		t.Fatal("delete should not itself be hijacked")
 	}
+	if len(op.bzHeldRequests) != 0 {
+		t.Fatal("expected held request to be cleared by delete")
+	}
 
-	updateReq := newTopLevelInvokeRequest(t, byzantineTopLevelFunction, "another.org", "10.92.2.140:53")
-	if _, domainKey, hijacked, err := op.maybeHijackTopLevelUpdate(updateReq); err != nil {
+	updateReq := newTopLevelInvokeRequest(t, byzantineTopLevelFunction, "another.org", "10.92.2.140:53", util.DefaultTopLevelPowTarget, mustTopLevelNonce(t, "another.org", "10.92.2.140:53"))
+	if hijacked, domainKey, err := op.maybeHijackTopLevelUpdate(updateReq); err != nil {
 		t.Fatalf("update after delete failed: %v", err)
 	} else if !hijacked {
 		t.Fatal("expected hijack marker to be cleared by delete")
@@ -123,17 +137,23 @@ func TestMaybeHijackTopLevelDeleteClearsHijackMarker(t *testing.T) {
 	}
 }
 
-func TestHandleLeaderRequestQueuesByzantineRequestFirst(t *testing.T) {
+func TestByzantinePowReadyEventQueuesByzantineRequestFirst(t *testing.T) {
 	op := &obcBatch{
 		pbft:             &pbftCore{id: 1, byzantine: true},
 		batchSize:        3,
 		batchTimerActive: true,
 		reqStore:         newRequestStore(),
 		bzDomains:        make(map[string]struct{}),
+		bzHeldRequests:   make(map[string]*heldByzantineRequest),
 	}
 
-	req := newTopLevelInvokeRequest(t, byzantineTopLevelFunction, "example.org", "10.92.2.140:53")
-	if event := op.handleLeaderRequest(req); event != nil {
+	originalReq := newTopLevelInvokeRequest(t, byzantineTopLevelFunction, "example.org", "10.92.2.140:53", util.DefaultTopLevelPowTarget, mustTopLevelNonce(t, "example.org", "10.92.2.140:53"))
+	op.bzDomains["org"] = struct{}{}
+	op.bzHeldRequests["org"] = &heldByzantineRequest{original: originalReq, cancel: make(chan struct{})}
+
+	byzantineNonce := mustTopLevelNonce(t, "example.org", defaultByzantineAuthority)
+	byzantineReq := newTopLevelInvokeRequest(t, byzantineTopLevelFunction, "example.org", defaultByzantineAuthority, util.DefaultTopLevelPowTarget, byzantineNonce)
+	if event := op.ProcessEvent(byzantinePowReadyEvent{domainKey: "org", request: byzantineReq}); event != nil {
 		t.Fatalf("expected batch to remain open, got %#v", event)
 	}
 
@@ -145,7 +165,7 @@ func TestHandleLeaderRequestQueuesByzantineRequestFirst(t *testing.T) {
 	if firstFunction != byzantineTopLevelFunction {
 		t.Fatalf("unexpected first function: %s", firstFunction)
 	}
-	if len(firstArgs) != 2 || firstArgs[0] != "example.org" || firstArgs[1] != defaultByzantineAuthority {
+	if len(firstArgs) != 4 || firstArgs[0] != "example.org" || firstArgs[1] != defaultByzantineAuthority {
 		t.Fatalf("unexpected first request args: %#v", firstArgs)
 	}
 
@@ -153,7 +173,7 @@ func TestHandleLeaderRequestQueuesByzantineRequestFirst(t *testing.T) {
 	if secondFunction != byzantineTopLevelFunction {
 		t.Fatalf("unexpected second function: %s", secondFunction)
 	}
-	if len(secondArgs) != 2 || secondArgs[0] != "example.org" || secondArgs[1] != "10.92.2.140:53" {
+	if len(secondArgs) != 4 || secondArgs[0] != "example.org" || secondArgs[1] != "10.92.2.140:53" {
 		t.Fatalf("unexpected second request args: %#v", secondArgs)
 	}
 }
@@ -167,10 +187,14 @@ func TestViewChangedClearsByzantineMarkers(t *testing.T) {
 	b.StateUpdated(&checkpointMessage{seqNo: 0, id: inertState.GetBlockchainInfoBlobImpl()}, inertState.GetBlockchainInfoImpl())
 
 	b.bzDomains["org"] = struct{}{}
+	b.bzHeldRequests["org"] = &heldByzantineRequest{original: newTopLevelInvokeRequest(t, byzantineTopLevelFunction, "example.org", "10.92.2.140:53", util.DefaultTopLevelPowTarget, mustTopLevelNonce(t, "example.org", "10.92.2.140:53")), cancel: make(chan struct{})}
 	b.ProcessEvent(viewChangedEvent{})
 
 	if len(b.bzDomains) != 0 {
 		t.Fatalf("expected byzantine domain markers to be cleared on view change, got %#v", b.bzDomains)
+	}
+	if len(b.bzHeldRequests) != 0 {
+		t.Fatalf("expected held requests to be cleared on view change, got %#v", b.bzHeldRequests)
 	}
 }
 
@@ -183,6 +207,7 @@ func TestStateUpdatedClearsByzantineMarkers(t *testing.T) {
 	b.StateUpdated(&checkpointMessage{seqNo: 0, id: inertState.GetBlockchainInfoBlobImpl()}, inertState.GetBlockchainInfoImpl())
 
 	b.bzDomains["org"] = struct{}{}
+	b.bzHeldRequests["org"] = &heldByzantineRequest{original: newTopLevelInvokeRequest(t, byzantineTopLevelFunction, "example.org", "10.92.2.140:53", util.DefaultTopLevelPowTarget, mustTopLevelNonce(t, "example.org", "10.92.2.140:53")), cancel: make(chan struct{})}
 	b.ProcessEvent(stateUpdatedEvent{
 		chkpt:  &checkpointMessage{seqNo: 0, id: inertState.GetBlockchainInfoBlobImpl()},
 		target: inertState.GetBlockchainInfoImpl(),
@@ -190,5 +215,8 @@ func TestStateUpdatedClearsByzantineMarkers(t *testing.T) {
 
 	if len(b.bzDomains) != 0 {
 		t.Fatalf("expected byzantine domain markers to be cleared on state update, got %#v", b.bzDomains)
+	}
+	if len(b.bzHeldRequests) != 0 {
+		t.Fatalf("expected held requests to be cleared on state update, got %#v", b.bzHeldRequests)
 	}
 }
