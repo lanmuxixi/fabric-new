@@ -144,6 +144,24 @@ func TestTopLevelUpdateAndDelete(t *testing.T) {
 	}
 }
 
+func TestTopLevelUpdateRejectsDuplicateRegistration(t *testing.T) {
+	scc := new(SimpleChaincode)
+	stub := shim.NewMockStub("dns", scc)
+
+	mustInit(t, stub, "com:1.1.1.1")
+	first := mustInvoke(t, stub, TopLevelUpdate, "example.org", "2.2.2.2:53")
+	if first.Code != 0 {
+		t.Fatalf("unexpected first update response: %+v", first)
+	}
+
+	if _, err := stub.MockInvoke("2", TopLevelUpdate, []string{"another.org", "3.3.3.3:53"}); err == nil {
+		t.Fatal("expected duplicate top-level registration to fail")
+	}
+	if got := string(stub.State["org"]); got != "2.2.2.2:53" {
+		t.Fatalf("unexpected stored org server after duplicate attempt: %s", got)
+	}
+}
+
 func TestTopLevelGetAllReturnsMappings(t *testing.T) {
 	scc := new(SimpleChaincode)
 	baseStub := shim.NewMockStub("dns", scc)

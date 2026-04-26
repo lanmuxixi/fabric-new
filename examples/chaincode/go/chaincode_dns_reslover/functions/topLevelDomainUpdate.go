@@ -23,6 +23,13 @@ func TopLevelDomainUpdate(stub shim.ChaincodeStubInterface, args []string) ([]by
 	if err != nil || len(topLevelDomain) == 0 {
 		return nil, errors.New("failed to get top level domain")
 	}
+	currentAuthorityServer, err := stub.GetState(topLevelDomain)
+	if err != nil {
+		return nil, errors.New("failed to query the domain-owner relation")
+	}
+	if len(currentAuthorityServer) != 0 {
+		return nil, errors.New("top level domain already registered")
+	}
 	if err := stub.PutState(topLevelDomain, []byte(authorityServer)); err != nil {
 		result = false
 		return nil, errors.New("failed to update the domain-owner relation")

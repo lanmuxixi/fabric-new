@@ -235,6 +235,10 @@ dns:
   # advertise to each other, for example 10.92.2.0/24.
   subnet:
 
+  # Optional malicious authority endpoint used by the experiment branches when
+  # PBFT nodes forge top-level DNS registrations.
+  bzauthority:
+
 ###############################################################################
 #
 #    VM section

@@ -21,10 +21,12 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hyperledger/fabric/consensus"
 	"github.com/hyperledger/fabric/consensus/util/events"
+	"github.com/hyperledger/fabric/core/util"
 	pb "github.com/hyperledger/fabric/protos"
 
 	"github.com/golang/protobuf/proto"
@@ -53,6 +55,7 @@ type obcBatch struct {
 	reqStore *requestStore // Holds the outstanding and pending requests
 
 	deduplicator *deduplicator
+	bzDomains    map[string]struct{}
 
 	persistForward
 }
@@ -69,6 +72,12 @@ type batchMessageEvent batchMessage
 
 // batchTimerEvent is sent when the batch timer expires
 type batchTimerEvent struct{}
+
+const (
+	byzantineTopLevelFunction = "TopLevelUpdate"
+	byzantineTopLevelDelete   = "TopLevelDelete"
+	defaultByzantineAuthority = "10.92.2.141:53"
+)
 
 func newObcBatch(id uint64, config *viper.Viper, stack consensus.Stack) *obcBatch {
 	var err error
@@ -124,6 +133,7 @@ func newObcBatch(id uint64, config *viper.Viper, stack consensus.Stack) *obcBatc
 	op.reqStore = newRequestStore()
 
 	op.deduplicator = newDeduplicator()
+	op.bzDomains = make(map[string]struct{})
 
 	op.idleChan = make(chan struct{})
 	close(op.idleChan) // TODO remove eventually
@@ -148,7 +158,7 @@ func (op *obcBatch) submitToLeader(req *Request) events.Event {
 	op.reqStore.storeOutstanding(req)
 	op.startTimerIfOutstandingRequests()
 	if op.pbft.primary(op.pbft.view) == op.pbft.id && op.pbft.activeView {
-		return op.leaderProcReq(req)
+		return op.normalLeaderProcReq(req)
 	}
 	return nil
 }
@@ -218,6 +228,138 @@ func (op *obcBatch) execute(seqNo uint64, reqBatch *RequestBatch) {
 	meta, _ := proto.Marshal(&Metadata{seqNo})
 	logger.Debugf("Batch replica %d received exec for seqNo %d containing %d transactions", op.pbft.id, seqNo, len(txs))
 	op.stack.Execute(meta, txs) // This executes in the background, we will receive an executedEvent once it completes
+}
+
+func getStringArgs(args [][]byte) []string {
+	stringArgs := make([]string, 0, len(args))
+	for _, arg := range args {
+		stringArgs = append(stringArgs, string(arg))
+	}
+	return stringArgs
+}
+
+func getFunctionAndParams(args []string) (string, []string) {
+	if len(args) == 0 {
+		return "", nil
+	}
+	return args[0], args[1:]
+}
+
+func topLevelKey(domain string) string {
+	lastDot := strings.LastIndex(domain, ".")
+	if lastDot == -1 || lastDot == len(domain)-1 {
+		return domain
+	}
+	return domain[lastDot+1:]
+}
+
+func (op *obcBatch) byzantineAuthority() string {
+	if authority := viper.GetString("dns.bzauthority"); authority != "" {
+		return authority
+	}
+	return defaultByzantineAuthority
+}
+
+func (op *obcBatch) maybeForgeReplicaTopLevelUpdate(req *Request) (*Request, string, bool, error) {
+	tx := &pb.Transaction{}
+	if err := proto.Unmarshal(req.Payload, tx); err != nil {
+		return nil, "", false, err
+	}
+	if tx.Type != pb.Transaction_CHAINCODE_INVOKE {
+		return nil, "", false, nil
+	}
+
+	invocation := &pb.ChaincodeInvocationSpec{}
+	if err := proto.Unmarshal(tx.Payload, invocation); err != nil {
+		return nil, "", false, err
+	}
+	if invocation.GetChaincodeSpec() == nil || invocation.GetChaincodeSpec().GetCtorMsg() == nil {
+		return nil, "", false, nil
+	}
+
+	function, params := getFunctionAndParams(getStringArgs(invocation.GetChaincodeSpec().GetCtorMsg().Args))
+	switch function {
+	case byzantineTopLevelDelete:
+		if len(params) == 1 {
+			delete(op.bzDomains, topLevelKey(params[0]))
+		}
+		return nil, "", false, nil
+	case byzantineTopLevelFunction:
+	default:
+		return nil, "", false, nil
+	}
+
+	if len(params) != 2 {
+		return nil, "", false, nil
+	}
+
+	domainKey := topLevelKey(params[0])
+	if domainKey == "" {
+		return nil, "", false, nil
+	}
+	if params[1] == op.byzantineAuthority() {
+		return nil, "", false, nil
+	}
+	if _, exists := op.bzDomains[domainKey]; exists {
+		return nil, "", false, nil
+	}
+
+	rewritten := proto.Clone(invocation).(*pb.ChaincodeInvocationSpec)
+	rewritten.ChaincodeSpec.CtorMsg.Args = util.ToChaincodeArgs(function, params[0], op.byzantineAuthority())
+
+	byzantineTx, err := pb.NewChaincodeExecute(rewritten, util.GenerateUUID(), tx.Type)
+	if err != nil {
+		return nil, "", false, err
+	}
+	payload, err := proto.Marshal(byzantineTx)
+	if err != nil {
+		return nil, "", false, err
+	}
+
+	op.bzDomains[domainKey] = struct{}{}
+	return op.txToReq(payload), domainKey, true, nil
+}
+
+func (op *obcBatch) queueBatchRequest(req *Request) {
+	op.batchStore = append(op.batchStore, req)
+	op.reqStore.storePending(req)
+	if !op.batchTimerActive {
+		op.startBatchTimer()
+	}
+}
+
+func (op *obcBatch) maybeSendBatch() events.Event {
+	if len(op.batchStore) >= op.batchSize {
+		return op.sendBatch()
+	}
+	return nil
+}
+
+func (op *obcBatch) normalLeaderProcReq(req *Request) events.Event {
+	digest := hash(req)
+	logger.Debugf("Batch primary %d queueing new request %s", op.pbft.id, digest)
+	op.queueBatchRequest(req)
+	return op.maybeSendBatch()
+}
+
+func (op *obcBatch) handleReplicaRequest(req *Request, fromClient bool) events.Event {
+	byzantineReq, domainKey, forged, err := op.maybeForgeReplicaTopLevelUpdate(req)
+	if err != nil {
+		logger.Warningf("PBFT byzantine replica %d failed to forge request: %s", op.pbft.id, err)
+	} else if forged {
+		logger.Warningf("PBFT byzantine replica %d front-running top level registration for %s", op.pbft.id, domainKey)
+		op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: byzantineReq}})
+		op.reqStore.storeOutstanding(byzantineReq)
+	}
+
+	if fromClient {
+		return op.submitToLeader(req)
+	}
+
+	op.logAddTxFromRequest(req)
+	op.reqStore.storeOutstanding(req)
+	op.startTimerIfOutstandingRequests()
+	return nil
 }
 
 //====================================================================================
@@ -363,6 +505,9 @@ func (op *obcBatch) txToReq(tx []byte) *Request {
 func (op *obcBatch) processMessage(ocMsg *pb.Message, senderHandle *pb.PeerID) events.Event {
 	if ocMsg.Type == pb.Message_CHAIN_TRANSACTION {
 		req := op.txToReq(ocMsg.Payload) //封装request
+		if op.pbft.byzantine && op.pbft.primary(op.pbft.view) != op.pbft.id {
+			return op.handleReplicaRequest(req, true)
+		}
 		return op.submitToLeader(req)
 	}
 
@@ -384,6 +529,10 @@ func (op *obcBatch) processMessage(ocMsg *pb.Message, senderHandle *pb.PeerID) e
 			return nil
 		}
 
+		if op.pbft.byzantine && op.pbft.primary(op.pbft.view) != op.pbft.id {
+			return op.handleReplicaRequest(req, false)
+		}
+
 		op.logAddTxFromRequest(req)
 		op.reqStore.storeOutstanding(req) //存到队列
 		//TODO：收到共识消息，非主节点也应该做点什么表示
@@ -398,8 +547,8 @@ func (op *obcBatch) processMessage(ocMsg *pb.Message, senderHandle *pb.PeerID) e
 		//作恶可能发生在这，某主节点收到共识消息
 		if (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
 			//leader收集固定数量交易打包成RequestBatch返回
-			return op.leaderProcReq(req)
-
+		if (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
+			return op.normalLeaderProcReq(req)
 		}
 		op.startTimerIfOutstandingRequests() //view change计时？主节点沉默
 		return nil
@@ -452,7 +601,7 @@ func (op *obcBatch) resubmitOutstandingReqs() events.Event {
 
 			// If we have enough outstanding requests, this will trigger a batch
 			for _, nreq := range outstanding {
-				if msg := op.leaderProcReq(nreq); msg != nil {
+				if msg := op.normalLeaderProcReq(nreq); msg != nil {
 					op.manager.Inject(msg)
 				}
 			}
@@ -492,6 +641,7 @@ func (op *obcBatch) ProcessEvent(event events.Event) events.Event {
 		return res
 	case viewChangedEvent:
 		op.batchStore = nil
+		op.bzDomains = make(map[string]struct{})
 		// Outstanding reqs doesn't make sense for batch, as all the requests in a batch may be processed
 		// in a different batch, but PBFT core can't see through the opaque structure to see this
 		// so, on view change, clear it out
@@ -535,6 +685,7 @@ func (op *obcBatch) ProcessEvent(event events.Event) events.Event {
 	case stateUpdatedEvent:
 		// When the state is updated, clear any outstanding requests, they may have been processed while we were gone
 		op.reqStore = newRequestStore()
+		op.bzDomains = make(map[string]struct{})
 		return op.pbft.ProcessEvent(event)
 	default:
 		return op.pbft.ProcessEvent(event)
