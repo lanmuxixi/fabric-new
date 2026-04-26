@@ -428,6 +428,10 @@ func makeTx(nonce uint32, domain string, ip string) (pb.Transaction, error) {
 // functions specific to batch mode
 // =============================================================================
 func (op *obcBatch) leaderProcReq(req *Request) events.Event {
+	return op.normalLeaderProcReq(req)
+}
+
+func (op *obcBatch) legacyLeaderProcReq(req *Request) events.Event {
 	// XXX check req sig
 	//主节点作恶处
 	if op.pbft.byzantine {
