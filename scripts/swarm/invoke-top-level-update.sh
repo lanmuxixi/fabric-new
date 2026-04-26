@@ -18,7 +18,7 @@ fi
 
 DOMAIN="${1:?Usage: $0 <request-domain> <authority-server>}"
 AUTHORITY_SERVER="${2:?Usage: $0 <request-domain> <authority-server>}"
-POW_TARGET="${DNS_POW_TARGET:-00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff}"
+POW_TARGET="${DNS_POW_TARGET:-000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff}"
 
 CHAINCODE_ID_FILE="${CHAINCODE_ID_FILE:-${REPO_ROOT}/deploy/swarm/last-chaincode-id.txt}"
 CHAINCODE_NAME="${CHAINCODE_NAME:-${ZZM:-${zzm:-}}}"
