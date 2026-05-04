@@ -7,7 +7,7 @@ x-peer-common: &peer-common
   stop_grace_period: 30s
 
 x-peer-env: &peer-env
-  CORE_PEER_ADDRESSAUTODETECT: "true"
+  CORE_PEER_ADDRESSAUTODETECT: "false"
   CORE_PEER_NETWORKID: ${CORE_PEER_NETWORKID:-dev}
   CORE_LOGGING_LEVEL: ${CORE_LOGGING_LEVEL:-info}
   CORE_VM_ENDPOINT: unix:///var/run/docker.sock
@@ -37,6 +37,7 @@ services:
     environment:
       <<: *peer-env
       CORE_PEER_ID: vp0
+      CORE_PEER_ADDRESS: vp0:7051
       CORE_PEER_PROFILE_ENABLED: "true"
       CORE_PBFT_GENERAL_BYZANTINE: ${VP0_BYZANTINE:-false}
     ports:
@@ -77,6 +78,7 @@ services:
     environment:
       <<: *peer-env
       CORE_PEER_ID: vp1
+      CORE_PEER_ADDRESS: vp1:7051
       CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
       CORE_PBFT_GENERAL_BYZANTINE: ${VP1_BYZANTINE:-false}
     volumes:
@@ -100,6 +102,7 @@ services:
     environment:
       <<: *peer-env
       CORE_PEER_ID: vp2
+      CORE_PEER_ADDRESS: vp2:7051
       CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
       CORE_PBFT_GENERAL_BYZANTINE: ${VP2_BYZANTINE:-false}
     volumes:
@@ -123,6 +126,7 @@ services:
     environment:
       <<: *peer-env
       CORE_PEER_ID: vp3
+      CORE_PEER_ADDRESS: vp3:7051
       CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
       CORE_PBFT_GENERAL_BYZANTINE: ${VP3_BYZANTINE:-false}
     volumes:
@@ -146,6 +150,7 @@ services:
     environment:
       <<: *peer-env
       CORE_PEER_ID: vp4
+      CORE_PEER_ADDRESS: vp4:7051
       CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
       CORE_PBFT_GENERAL_BYZANTINE: ${VP4_BYZANTINE:-false}
     ports:
@@ -174,6 +179,7 @@ services:
     environment:
       <<: *peer-env
       CORE_PEER_ID: vp5
+      CORE_PEER_ADDRESS: vp5:7051
       CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
       CORE_PBFT_GENERAL_BYZANTINE: ${VP5_BYZANTINE:-false}
     volumes:
@@ -197,6 +203,7 @@ services:
     environment:
       <<: *peer-env
       CORE_PEER_ID: vp6
+      CORE_PEER_ADDRESS: vp6:7051
       CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
       CORE_PBFT_GENERAL_BYZANTINE: ${VP6_BYZANTINE:-false}
     volumes:
@@ -220,6 +227,7 @@ services:
     environment:
       <<: *peer-env
       CORE_PEER_ID: vp7
+      CORE_PEER_ADDRESS: vp7:7051
       CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
       CORE_PBFT_GENERAL_BYZANTINE: ${VP7_BYZANTINE:-false}
     volumes:
@@ -243,6 +251,7 @@ services:
     environment:
       <<: *peer-env
       CORE_PEER_ID: vp8
+      CORE_PEER_ADDRESS: vp8:7051
       CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
       CORE_PBFT_GENERAL_BYZANTINE: ${VP8_BYZANTINE:-false}
     volumes:
@@ -266,6 +275,7 @@ services:
     environment:
       <<: *peer-env
       CORE_PEER_ID: vp9
+      CORE_PEER_ADDRESS: vp9:7051
       CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
       CORE_PBFT_GENERAL_BYZANTINE: ${VP9_BYZANTINE:-false}
     volumes:
