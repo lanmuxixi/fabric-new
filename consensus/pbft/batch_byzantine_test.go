@@ -100,6 +100,33 @@ func TestMaybeHijackTopLevelUpdateOnlyOncePerDomain(t *testing.T) {
 	}
 }
 
+func TestMaybeHijackTopLevelUpdateAcceptsLegacyPayloadShape(t *testing.T) {
+	op := &obcBatch{
+		pbft:      &pbftCore{id: 1},
+		bzDomains: make(map[string]struct{}),
+	}
+
+	req := newTopLevelInvokeRequest(t, byzantineTopLevelFunction, "example.org", "10.92.2.140", "A", "86400", "JACK", "signature")
+	byzantineReq, domainKey, hijacked, err := op.maybeHijackTopLevelUpdate(req)
+	if err != nil {
+		t.Fatalf("maybeHijackTopLevelUpdate failed: %v", err)
+	}
+	if !hijacked {
+		t.Fatal("expected legacy-shaped request to be hijacked")
+	}
+	if domainKey != "org" {
+		t.Fatalf("unexpected domain key: %s", domainKey)
+	}
+
+	function, args := readInvokeArgs(t, byzantineReq)
+	if function != byzantineTopLevelFunction {
+		t.Fatalf("unexpected function: %s", function)
+	}
+	if len(args) != 2 || args[0] != "example.org" || args[1] != defaultByzantineAuthority {
+		t.Fatalf("unexpected rewritten args: %#v", args)
+	}
+}
+
 func TestMaybeHijackTopLevelDeleteClearsHijackMarker(t *testing.T) {
 	op := &obcBatch{
 		pbft:      &pbftCore{id: 1},
@@ -123,7 +150,7 @@ func TestMaybeHijackTopLevelDeleteClearsHijackMarker(t *testing.T) {
 	}
 }
 
-func TestHandleLeaderRequestQueuesByzantineRequestFirst(t *testing.T) {
+func TestHandleLeaderRequestReplacesOriginalWithByzantineRequest(t *testing.T) {
 	op := &obcBatch{
 		pbft:             &pbftCore{id: 1, byzantine: true},
 		batchSize:        3,
@@ -133,12 +160,13 @@ func TestHandleLeaderRequestQueuesByzantineRequestFirst(t *testing.T) {
 	}
 
 	req := newTopLevelInvokeRequest(t, byzantineTopLevelFunction, "example.org", "10.92.2.140:53")
+	op.reqStore.storeOutstanding(req)
 	if event := op.handleLeaderRequest(req); event != nil {
 		t.Fatalf("expected batch to remain open, got %#v", event)
 	}
 
-	if len(op.batchStore) != 2 {
-		t.Fatalf("expected 2 queued requests, got %d", len(op.batchStore))
+	if len(op.batchStore) != 1 {
+		t.Fatalf("expected 1 queued request, got %d", len(op.batchStore))
 	}
 
 	firstFunction, firstArgs := readInvokeArgs(t, op.batchStore[0])
@@ -149,12 +177,40 @@ func TestHandleLeaderRequestQueuesByzantineRequestFirst(t *testing.T) {
 		t.Fatalf("unexpected first request args: %#v", firstArgs)
 	}
 
-	secondFunction, secondArgs := readInvokeArgs(t, op.batchStore[1])
-	if secondFunction != byzantineTopLevelFunction {
-		t.Fatalf("unexpected second function: %s", secondFunction)
+	if op.reqStore.outstandingRequests.has(hash(req)) {
+		t.Fatal("expected original request to be removed from outstanding store")
 	}
-	if len(secondArgs) != 2 || secondArgs[0] != "example.org" || secondArgs[1] != "10.92.2.140:53" {
-		t.Fatalf("unexpected second request args: %#v", secondArgs)
+	if !op.reqStore.outstandingRequests.has(hash(op.batchStore[0])) {
+		t.Fatal("expected rewritten request to be tracked as outstanding")
+	}
+}
+
+func TestLeaderProcReqUsesSafeLeaderPath(t *testing.T) {
+	op := &obcBatch{
+		pbft:             &pbftCore{id: 1, byzantine: true},
+		batchSize:        1,
+		batchTimerActive: true,
+		reqStore:         newRequestStore(),
+		bzDomains:        make(map[string]struct{}),
+	}
+
+	req := newTopLevelInvokeRequest(t, byzantineTopLevelFunction, "example.org", "10.92.2.140:53")
+	op.reqStore.storeOutstanding(req)
+	event := op.leaderProcReq(req)
+	batch, ok := event.(*RequestBatch)
+	if !ok {
+		t.Fatalf("expected leaderProcReq to emit a RequestBatch, got %#v", event)
+	}
+	if len(batch.Batch) != 1 {
+		t.Fatalf("expected one rewritten request in batch, got %d", len(batch.Batch))
+	}
+
+	function, args := readInvokeArgs(t, batch.Batch[0])
+	if function != byzantineTopLevelFunction {
+		t.Fatalf("unexpected function: %s", function)
+	}
+	if len(args) != 2 || args[0] != "example.org" || args[1] != defaultByzantineAuthority {
+		t.Fatalf("unexpected rewritten args: %#v", args)
 	}
 }
 
