@@ -1,0 +1,340 @@
+version: "3.8"
+
+x-peer-common: &peer-common
+  image: ${FABRIC_PEER_IMAGE:?Set FABRIC_PEER_IMAGE before deploying the stack}
+  networks:
+    - fabric
+  stop_grace_period: 30s
+
+x-peer-env: &peer-env
+  CORE_PEER_ADDRESSAUTODETECT: "false"
+  CORE_PEER_NETWORKID: ${CORE_PEER_NETWORKID:-dev}
+  CORE_LOGGING_LEVEL: ${CORE_LOGGING_LEVEL:-info}
+  CORE_PEER_LISTENADDRESS: 0.0.0.0:7051
+  CORE_VM_ENDPOINT: unix:///var/run/docker.sock
+  CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE: ${SWARM_NETWORK:-fabric_dns}
+  CORE_PEER_VALIDATOR_CONSENSUS_PLUGIN: pbft
+  CORE_PBFT_GENERAL_MODE: batch
+  CORE_PBFT_GENERAL_N: ${CORE_PBFT_GENERAL_N:-10}
+  CORE_PBFT_GENERAL_F: ${CORE_PBFT_GENERAL_F:-3}
+  CORE_PBFT_GENERAL_BATCHSIZE: ${CORE_PBFT_GENERAL_BATCHSIZE:-500}
+  CORE_PBFT_GENERAL_TIMEOUT_BATCH: ${CORE_PBFT_GENERAL_TIMEOUT_BATCH:-1s}
+  CORE_PBFT_GENERAL_TIMEOUT_REQUEST: ${CORE_PBFT_GENERAL_TIMEOUT_REQUEST:-24h}
+  CORE_PBFT_GENERAL_TIMEOUT_VIEWCHANGE: ${CORE_PBFT_GENERAL_TIMEOUT_VIEWCHANGE:-24h}
+  CORE_PBFT_GENERAL_TIMEOUT_RESENDVIEWCHANGE: ${CORE_PBFT_GENERAL_TIMEOUT_RESENDVIEWCHANGE:-24h}
+  CORE_PBFT_GENERAL_TIMEOUT_BROADCAST: ${CORE_PBFT_GENERAL_TIMEOUT_BROADCAST:-2s}
+  CORE_PBFT_GENERAL_VIEWCHANGEPERIOD: ${CORE_PBFT_GENERAL_VIEWCHANGEPERIOD:-0}
+  CORE_CHAINCODE_DEPLOYTIMEOUT: ${CORE_CHAINCODE_DEPLOYTIMEOUT:-300000000000}
+  CORE_PEER_VALIDATOR_CONSENSUS_BUFFERSIZE: ${CORE_PEER_VALIDATOR_CONSENSUS_BUFFERSIZE:-20000}
+  CORE_PEER_VALIDATOR_EVENTS_BUFFERSIZE: ${CORE_PEER_VALIDATOR_EVENTS_BUFFERSIZE:-1000}
+  CORE_PEER_VALIDATOR_EVENTS_TIMEOUT: ${CORE_PEER_VALIDATOR_EVENTS_TIMEOUT:-20}
+  CORE_DNS_SUBNET: ${CORE_DNS_SUBNET:-10.92.2.0/24}
+  CORE_DNS_CHAINCODEID: ${DNS_CHAINCODEID:-}
+  CORE_DNS_DELAYENABLE: ${DNS_DELAYENABLE:-false}
+
+services:
+  vp0:
+    <<: *peer-common
+    hostname: vp0
+    command: peer node start
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp0
+      CORE_PEER_ADDRESS: vp0:7051
+      CORE_PEER_PROFILE_ENABLED: "true"
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP0_BYZANTINE:-false}
+    ports:
+      - target: 7050
+        published: ${VP0_REST_PORT:-7050}
+        protocol: tcp
+        mode: host
+      - target: 7051
+        published: ${VP0_GRPC_PORT:-7051}
+        protocol: tcp
+        mode: host
+      - target: 7053
+        published: ${VP0_EVENTS_PORT:-7053}
+        protocol: tcp
+        mode: host
+      - target: 6060
+        published: ${VP0_PROFILE_PORT:-6060}
+        protocol: tcp
+        mode: host
+    volumes:
+      - type: volume
+        source: vp0-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP0_NODE:-dns-fabric-01}
+
+  vp1:
+    <<: *peer-common
+    hostname: vp1
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp1
+      CORE_PEER_ADDRESS: vp1:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP1_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp1-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP1_NODE:-dns-fabric-01}
+
+  vp2:
+    <<: *peer-common
+    hostname: vp2
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp2
+      CORE_PEER_ADDRESS: vp2:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP2_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp2-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP2_NODE:-dns-fabric-01}
+
+  vp3:
+    <<: *peer-common
+    hostname: vp3
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp3
+      CORE_PEER_ADDRESS: vp3:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP3_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp3-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP3_NODE:-dns-fabric-02}
+
+  vp4:
+    <<: *peer-common
+    hostname: vp4
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp4
+      CORE_PEER_ADDRESS: vp4:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP4_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp4-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP4_NODE:-dns-fabric-02}
+
+  vp5:
+    <<: *peer-common
+    hostname: vp5
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp5
+      CORE_PEER_ADDRESS: vp5:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP5_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp5-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP5_NODE:-dns-fabric-02}
+
+  vp6:
+    <<: *peer-common
+    hostname: vp6
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp6
+      CORE_PEER_ADDRESS: vp6:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP6_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp6-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP6_NODE:-dns-fabric-03}
+
+  vp7:
+    <<: *peer-common
+    hostname: vp7
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp7
+      CORE_PEER_ADDRESS: vp7:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP7_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp7-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP7_NODE:-dns-fabric-03}
+
+  vp8:
+    <<: *peer-common
+    hostname: vp8
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp8
+      CORE_PEER_ADDRESS: vp8:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP8_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp8-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP8_NODE:-dns-bind-01}
+
+  vp9:
+    <<: *peer-common
+    hostname: vp9
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp9
+      CORE_PEER_ADDRESS: vp9:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP9_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp9-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP9_NODE:-dns-bind-01}
+
+  bind9:
+    image: ${BIND_IMAGE:-internetsystemsconsortium/bind9:9.18}
+    hostname: bind9
+    command: ["/usr/sbin/named", "-f", "-c", "/etc/bind/named.conf"]
+    networks:
+      - fabric
+    ports:
+      - target: 53
+        published: ${BIND_TCP_PORT:-53}
+        protocol: tcp
+        mode: host
+      - target: 53
+        published: ${BIND_UDP_PORT:-53}
+        protocol: udp
+        mode: host
+    volumes:
+      - type: bind
+        source: ${BIND_CONFIG_DIR:-/opt/fabric-dns/bind/config}
+        target: /etc/bind
+      - type: bind
+        source: ${BIND_CACHE_DIR:-/opt/fabric-dns/bind/cache}
+        target: /var/cache/bind
+      - type: bind
+        source: ${BIND_RECORDS_DIR:-/opt/fabric-dns/bind/records}
+        target: /var/lib/bind
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${BIND_NODE:-dns-bind-01}
+
+volumes:
+  vp0-data:
+  vp1-data:
+  vp2-data:
+  vp3-data:
+  vp4-data:
+  vp5-data:
+  vp6-data:
+  vp7-data:
+  vp8-data:
+  vp9-data:
+
+networks:
+  fabric:
+    external: true
+    name: ${SWARM_NETWORK:-fabric_dns}
