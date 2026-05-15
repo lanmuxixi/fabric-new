@@ -1,0 +1,11 @@
+zone "com" IN {
+    type master;
+    file "/var/lib/bind/db.com";
+    allow-update { any; };
+};
+
+zone "cn" IN {
+    type master;
+    file "/var/lib/bind/db.cn";
+    allow-update { any; };
+};
