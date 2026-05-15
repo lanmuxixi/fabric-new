@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+REPO_ROOT=$(cd "${SCRIPT_DIR}/../.." && pwd)
+ENV_FILE="${ENV_FILE:-${REPO_ROOT}/deploy/swarm/.env}"
+
+if [[ -f "${ENV_FILE}" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "${ENV_FILE}"
+  set +a
+fi
+
+BIND_HOST="${BIND_HOST:-10.161.34.51}"
+DIG_NAME="${1:-www.example.com}"
+
+dig @"${BIND_HOST}" "${DIG_NAME}" +short
