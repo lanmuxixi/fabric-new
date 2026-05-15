@@ -4,13 +4,13 @@
 
 当前设计默认假设：
 
-- 权威 DNS 节点是 `dns-bind-01`
+- 权威 DNS 节点是 `.env` 中的 `BIND_NODE`
 - zone 文件挂载到 `/var/lib/bind`
 - Fabric DNS 链码通过动态更新 / 查询直接与 Bind9 交互
 
-## 在 dns-bind-01 上安装
+## 在 BIND_NODE 上安装
 
-在 `dns-bind-01` 上拉取当前分支代码后，执行：
+在 `BIND_NODE` 对应宿主机上拉取当前分支代码后，执行：
 
 ```bash
 ./scripts/swarm/prepare-bind-layout.sh

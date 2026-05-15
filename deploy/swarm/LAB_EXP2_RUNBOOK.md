@@ -19,20 +19,18 @@
 
 ## 2. 服务器节点规划
 
-当前三台服务器：
+当前只使用两台服务器部署 10 个 peer 节点：
 
 ```text
 10.161.34.8   roott-I620-G20      Swarm manager
 10.161.34.51  qichang-I420-G20    Swarm worker
-10.161.34.22  node21              Swarm worker
 ```
 
 默认节点放置：
 
 ```text
-roott-I620-G20:    vp0, vp1, vp2, vp3
-qichang-I420-G20:  vp4, vp5, vp6
-node21:            vp7, vp8, vp9, bind9
+roott-I620-G20:    vp0, vp1, vp2, vp3, vp4
+qichang-I420-G20:  vp5, vp6, vp7, vp8, vp9, bind9
 ```
 
 ## 3. 拉取分支
@@ -63,6 +61,8 @@ CORE_PBFT_GENERAL_VIEWCHANGEPERIOD=0
 CORE_DNS_SUBNET=10.161.34.0/24
 VP0_BYZANTINE=true
 VP0_ENDPOINT=10.161.34.8:7051
+BIND_NODE=qichang-I420-G20
+CHAINCODE_CTOR={"Function":"init","Args":["com:10.161.34.51:53","cn:10.161.34.51:53"]}
 ```
 
 `DNS_CHAINCODEID` 初始可以为空。部署链码后，`scripts/swarm/deploy-dns-chaincode.sh` 会自动写入该值。
@@ -75,7 +75,7 @@ VP0_ENDPOINT=10.161.34.8:7051
 bash scripts/swarm/build-peer-image.sh
 ```
 
-然后把镜像分发到三台 Swarm 节点。离线环境可以使用 `docker save` / `docker load`：
+然后把镜像分发到两台 Swarm 节点。离线环境可以使用 `docker save` / `docker load`：
 
 ```bash
 docker save fabric-dns-peer:swarm -o /tmp/fabric-dns-peer-swarm.tar
@@ -90,7 +90,7 @@ docker images | grep fabric-dns-peer
 
 ## 6. 准备 Bind9
 
-在 `node21` 上执行：
+在 `qichang-I420-G20` 上执行：
 
 ```bash
 cd /root/go/src/github.com/hyperledger/fabric

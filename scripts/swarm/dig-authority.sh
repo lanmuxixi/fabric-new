@@ -13,7 +13,7 @@ if [[ -f "${ENV_FILE}" ]]; then
   set +a
 fi
 
-BIND_HOST="${BIND_HOST:-10.92.2.140}"
+BIND_HOST="${BIND_HOST:-10.161.34.51}"
 DIG_NAME="${1:-www.example.com}"
 
 dig @"${BIND_HOST}" "${DIG_NAME}" +short

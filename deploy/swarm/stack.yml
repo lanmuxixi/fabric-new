@@ -28,7 +28,7 @@ x-peer-env: &peer-env
   CORE_PEER_VALIDATOR_CONSENSUS_BUFFERSIZE: ${CORE_PEER_VALIDATOR_CONSENSUS_BUFFERSIZE:-20000}
   CORE_PEER_VALIDATOR_EVENTS_BUFFERSIZE: ${CORE_PEER_VALIDATOR_EVENTS_BUFFERSIZE:-1000}
   CORE_PEER_VALIDATOR_EVENTS_TIMEOUT: ${CORE_PEER_VALIDATOR_EVENTS_TIMEOUT:-20}
-  CORE_DNS_SUBNET: ${CORE_DNS_SUBNET:-10.92.2.0/24}
+  CORE_DNS_SUBNET: ${CORE_DNS_SUBNET:-10.161.34.0/24}
   CORE_DNS_CHAINCODEID: ${DNS_CHAINCODEID:-}
   CORE_DNS_DELAYENABLE: ${DNS_DELAYENABLE:-false}
 
@@ -144,7 +144,7 @@ services:
         condition: on-failure
       placement:
         constraints:
-          - node.hostname == ${VP3_NODE:-dns-fabric-02}
+          - node.hostname == ${VP3_NODE:-dns-fabric-01}
 
   vp4:
     <<: *peer-common
@@ -168,7 +168,7 @@ services:
         condition: on-failure
       placement:
         constraints:
-          - node.hostname == ${VP4_NODE:-dns-fabric-02}
+          - node.hostname == ${VP4_NODE:-dns-fabric-01}
 
   vp5:
     <<: *peer-common
@@ -216,7 +216,7 @@ services:
         condition: on-failure
       placement:
         constraints:
-          - node.hostname == ${VP6_NODE:-dns-fabric-03}
+          - node.hostname == ${VP6_NODE:-dns-fabric-02}
 
   vp7:
     <<: *peer-common
@@ -240,7 +240,7 @@ services:
         condition: on-failure
       placement:
         constraints:
-          - node.hostname == ${VP7_NODE:-dns-fabric-03}
+          - node.hostname == ${VP7_NODE:-dns-fabric-02}
 
   vp8:
     <<: *peer-common
@@ -264,7 +264,7 @@ services:
         condition: on-failure
       placement:
         constraints:
-          - node.hostname == ${VP8_NODE:-dns-bind-01}
+          - node.hostname == ${VP8_NODE:-dns-fabric-02}
 
   vp9:
     <<: *peer-common
@@ -288,7 +288,7 @@ services:
         condition: on-failure
       placement:
         constraints:
-          - node.hostname == ${VP9_NODE:-dns-bind-01}
+          - node.hostname == ${VP9_NODE:-dns-fabric-02}
 
   bind9:
     image: ${BIND_IMAGE:-internetsystemsconsortium/bind9:9.18}
@@ -320,7 +320,7 @@ services:
         condition: on-failure
       placement:
         constraints:
-          - node.hostname == ${BIND_NODE:-dns-bind-01}
+          - node.hostname == ${BIND_NODE:-dns-fabric-02}
 
 volumes:
   vp0-data:

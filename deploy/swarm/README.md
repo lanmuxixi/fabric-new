@@ -2,9 +2,8 @@
 
 当前目录对应的是实验二 10 节点 Docker Swarm 部署版本：
 
-- `roott-I620-G20` 上部署 `vp0` `vp1` `vp2` `vp3`
-- `qichang-I420-G20` 上部署 `vp4` `vp5` `vp6`
-- `node21` 上部署 `vp7` `vp8` `vp9` 和 Bind9
+- `roott-I620-G20` 上部署 `vp0` `vp1` `vp2` `vp3` `vp4`
+- `qichang-I420-G20` 上部署 `vp5` `vp6` `vp7` `vp8` `vp9` 和 Bind9
 
 这套方案以 `v0.6-primarybz-nopow` 为业务基线，只把部署方式迁移到 Docker Swarm。DNS 链码和主节点抢注逻辑仍使用原实验二实现，对应目录是：
 
@@ -67,7 +66,7 @@ Fabric 0.6 的链码是通过宿主机 Docker daemon 启动的。在 Swarm 环�
 - `../../scripts/swarm/query-top-levels.sh`：执行 `TopLevelGetAll` 验证查询
 - `../../scripts/swarm/get-service-container.sh`：解析某个 Swarm service 对应的运行中容器
 - `../../scripts/swarm/exec-vp0.sh`：进入 `vp0` 容器
-- `../../scripts/swarm/prepare-bind-layout.sh`：在 `dns-bind-01` 上安装 Bind9 样板配置
+- `../../scripts/swarm/prepare-bind-layout.sh`：在 `BIND_NODE` 对应宿主机上安装 Bind9 样板配置
 - `../../scripts/swarm/dig-authority.sh`：通过 Bind9 做 `dig` 验证
 
 ## 构建镜像
@@ -98,7 +97,7 @@ cp deploy/swarm/.env.example deploy/swarm/.env
 
 2. 确保 peer 镜像已经存在于所有 Swarm 节点上。
 
-3. 确保 `dns-bind-01` 上的 Bind9 目录已经准备好：
+3. 确保 `BIND_NODE` 对应宿主机上的 Bind9 目录已经准备好：
 
 - `${BIND_CONFIG_DIR}`
 - `${BIND_CACHE_DIR}`
@@ -132,10 +131,10 @@ docker service logs -f "${STACK_NAME:-fabricdns}_vp0"
 ./scripts/swarm/deploy-dns-chaincode.sh
 ```
 
-当前默认初始化内容为：
+链码初始化内容以 `.env` 中的 `CHAINCODE_CTOR` 为准。实验室两机模板默认是：
 
-- `com -> 10.92.2.140:53`
-- `cn -> 10.92.2.140:53`
+- `com -> 10.161.34.51:53`
+- `cn -> 10.161.34.51:53`
 
 deploy 成功后，脚本会做两件事：
 
@@ -197,7 +196,7 @@ docker run --rm \
 
 如果将来补一个单独的同步程序，它应当：
 
-- 运行在 `dns-bind-01`
+- 运行在 `BIND_NODE` 对应宿主机
 - 使用当前 deploy 返回的链码名进行联动
 
 最基本的 DNS 验证方式是：

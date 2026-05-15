@@ -14,7 +14,7 @@ if [[ -f "${ENV_FILE}" ]]; then
 fi
 
 : "${FABRIC_PEER_IMAGE:?Set FABRIC_PEER_IMAGE in ${ENV_FILE} or export it before running this script.}"
-: "${VP0_ENDPOINT:?Set VP0_ENDPOINT to the published gRPC endpoint of vp0, for example 10.92.2.138:7051.}"
+: "${VP0_ENDPOINT:?Set VP0_ENDPOINT to the published gRPC endpoint of vp0, for example 10.161.34.8:7051.}"
 
 if [[ "$#" -ne 6 ]]; then
   echo "Usage: $0 <domain> <ip> <record-type> <ttl> <owner> <signature>" >&2
