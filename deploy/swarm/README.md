@@ -56,6 +56,7 @@ Fabric 0.6 的链码是通过宿主机 Docker daemon 启动的。在 Swarm 环�
 
 - `stack.yml`：10 个 validating peer 加 1 个 Bind9 服务的 Swarm 编排文件
 - `.env.example`：部署变量模板
+- `EXPERIMENT_2_FULL_DEPLOYMENT.md`：从拉代码、离线镜像到压测前检查的完整部署文档
 - `LAB_EXP2_RUNBOOK.md`：实验二完整执行顺序、检查点和常见失败点
 - `bind/`：Bind9 样板配置与 `com` / `cn` 初始 zone 文件
 - `../../scripts/swarm/build-peer-image.sh`：构建并重打标签 peer 镜像
