@@ -68,6 +68,7 @@ services:
         source: /var/run/docker.sock
         target: /var/run/docker.sock
     deploy:
+      endpoint_mode: dnsrr
       restart_policy:
         condition: on-failure
       placement:
@@ -92,6 +93,7 @@ services:
         source: /var/run/docker.sock
         target: /var/run/docker.sock
     deploy:
+      endpoint_mode: dnsrr
       restart_policy:
         condition: on-failure
       placement:
@@ -116,6 +118,7 @@ services:
         source: /var/run/docker.sock
         target: /var/run/docker.sock
     deploy:
+      endpoint_mode: dnsrr
       restart_policy:
         condition: on-failure
       placement:
@@ -140,6 +143,7 @@ services:
         source: /var/run/docker.sock
         target: /var/run/docker.sock
     deploy:
+      endpoint_mode: dnsrr
       restart_policy:
         condition: on-failure
       placement:
@@ -164,6 +168,7 @@ services:
         source: /var/run/docker.sock
         target: /var/run/docker.sock
     deploy:
+      endpoint_mode: dnsrr
       restart_policy:
         condition: on-failure
       placement:
@@ -188,6 +193,7 @@ services:
         source: /var/run/docker.sock
         target: /var/run/docker.sock
     deploy:
+      endpoint_mode: dnsrr
       restart_policy:
         condition: on-failure
       placement:
@@ -212,6 +218,7 @@ services:
         source: /var/run/docker.sock
         target: /var/run/docker.sock
     deploy:
+      endpoint_mode: dnsrr
       restart_policy:
         condition: on-failure
       placement:
@@ -236,6 +243,7 @@ services:
         source: /var/run/docker.sock
         target: /var/run/docker.sock
     deploy:
+      endpoint_mode: dnsrr
       restart_policy:
         condition: on-failure
       placement:
@@ -260,6 +268,7 @@ services:
         source: /var/run/docker.sock
         target: /var/run/docker.sock
     deploy:
+      endpoint_mode: dnsrr
       restart_policy:
         condition: on-failure
       placement:
@@ -284,6 +293,7 @@ services:
         source: /var/run/docker.sock
         target: /var/run/docker.sock
     deploy:
+      endpoint_mode: dnsrr
       restart_policy:
         condition: on-failure
       placement:
@@ -293,7 +303,7 @@ services:
   bind9:
     image: ${BIND_IMAGE:-internetsystemsconsortium/bind9:9.18}
     hostname: bind9
-    command: ["/usr/sbin/named", "-f", "-c", "/etc/bind/named.conf"]
+    command: ["-f", "-c", "/etc/bind/named.conf"]
     networks:
       - fabric
     ports:
