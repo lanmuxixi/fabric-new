@@ -1,11 +1,9 @@
 # Swarm 实验说明
 
-当前目录对应的是任务说明中要求的 10 节点 Docker Swarm 实验版本：
+当前目录对应的是实验一 30 节点 Docker Swarm 性能测试版本：
 
-- `dns-fabric-01` 上部署 `vp0` `vp1` `vp2`
-- `dns-fabric-02` 上部署 `vp3` `vp4` `vp5`
-- `dns-fabric-03` 上部署 `vp6` `vp7`
-- `dns-bind-01` 上部署 `vp8` `vp9` 和 Bind9
+- `roott-I620-G20` 上部署 `vp0` 到 `vp14`
+- `qichang-I420-G20` 上部署 `vp15` 到 `vp29` 和 Bind9
 
 这套方案保留了 `feature/v0.6-multi-host` 中多机 PBFT 拓扑的思路，但 DNS 业务链码已经切换为 `feature/domain-reslover` 风格，对应目录是：
 
@@ -55,7 +53,7 @@ Fabric 0.6 的链码是通过宿主机 Docker daemon 启动的。在 Swarm 环�
 
 ## 目录内容
 
-- `stack.yml`：10 个 validating peer 加 1 个 Bind9 服务的 Swarm 编排文件
+- `stack.yml`：30 个 validating peer 加 1 个 Bind9 服务的 Swarm 编排文件
 - `.env.example`：部署变量模板
 - `EXPERIMENT_RUNBOOK.md`：完整执行顺序、检查点和常见失败点
 - `bind/`：Bind9 样板配置与 `com` / `cn` 初始 zone 文件
@@ -66,7 +64,7 @@ Fabric 0.6 的链码是通过宿主机 Docker daemon 启动的。在 Swarm 环�
 - `../../scripts/swarm/query-top-levels.sh`：执行 `TopLevelGetAll` 验证查询
 - `../../scripts/swarm/get-service-container.sh`：解析某个 Swarm service 对应的运行中容器
 - `../../scripts/swarm/exec-vp0.sh`：进入 `vp0` 容器
-- `../../scripts/swarm/prepare-bind-layout.sh`：在 `dns-bind-01` 上安装 Bind9 样板配置
+- `../../scripts/swarm/prepare-bind-layout.sh`：在 Bind9 目标节点上安装 Bind9 样板配置
 - `../../scripts/swarm/dig-authority.sh`：通过 Bind9 做 `dig` 验证
 
 ## 构建镜像
@@ -97,7 +95,7 @@ cp deploy/swarm/.env.example deploy/swarm/.env
 
 2. 确保 peer 镜像已经存在于所有 Swarm 节点上。
 
-3. 确保 `dns-bind-01` 上的 Bind9 目录已经准备好：
+3. 确保 Bind9 目标节点上的 Bind9 目录已经准备好：
 
 - `${BIND_CONFIG_DIR}`
 - `${BIND_CACHE_DIR}`
@@ -133,8 +131,8 @@ docker service logs -f "${STACK_NAME:-fabricdns}_vp0"
 
 当前默认初始化内容为：
 
-- `com -> 10.92.2.140:53`
-- `cn -> 10.92.2.140:53`
+- `com -> 10.161.34.51:53`
+- `cn -> 10.161.34.51:53`
 
 deploy 成功后，脚本会做两件事：
 
@@ -187,7 +185,7 @@ docker run --rm \
 
 如果将来补一个单独的同步程序，它应当：
 
-- 运行在 `dns-bind-01`
+- 运行在 Bind9 目标节点
 - 使用当前 deploy 返回的链码名进行联动
 
 最基本的 DNS 验证方式是：

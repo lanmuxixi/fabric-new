@@ -14,10 +14,10 @@ if [[ -f "${ENV_FILE}" ]]; then
 fi
 
 : "${FABRIC_PEER_IMAGE:?Set FABRIC_PEER_IMAGE in ${ENV_FILE} or export it before running this script.}"
-: "${VP0_ENDPOINT:?Set VP0_ENDPOINT to the published gRPC endpoint of vp0, for example 10.92.2.138:7051.}"
+: "${VP0_ENDPOINT:?Set VP0_ENDPOINT to the published gRPC endpoint of vp0, for example 10.161.34.8:7051.}"
 
 CHAINCODE_PATH="${CHAINCODE_PATH:-github.com/hyperledger/fabric/examples/chaincode/go/chaincode_dns_reslover}"
-CHAINCODE_CTOR="${CHAINCODE_CTOR:-{\"Function\":\"init\",\"Args\":[\"com:10.92.2.140:53\",\"cn:10.92.2.140:53\"]}}"
+CHAINCODE_CTOR="${CHAINCODE_CTOR:-{\"Function\":\"init\",\"Args\":[\"com:10.161.34.51:53\",\"cn:10.161.34.51:53\"]}}"
 CHAINCODE_DEPLOY_LOG="${CHAINCODE_DEPLOY_LOG:-${REPO_ROOT}/deploy/swarm/last-chaincode-deploy.log}"
 CHAINCODE_ID_FILE="${CHAINCODE_ID_FILE:-${REPO_ROOT}/deploy/swarm/last-chaincode-id.txt}"
 

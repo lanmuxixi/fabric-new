@@ -15,8 +15,8 @@ x-peer-env: &peer-env
   CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE: ${SWARM_NETWORK:-fabric_dns}
   CORE_PEER_VALIDATOR_CONSENSUS_PLUGIN: pbft
   CORE_PBFT_GENERAL_MODE: batch
-  CORE_PBFT_GENERAL_N: ${CORE_PBFT_GENERAL_N:-10}
-  CORE_PBFT_GENERAL_F: ${CORE_PBFT_GENERAL_F:-3}
+  CORE_PBFT_GENERAL_N: ${CORE_PBFT_GENERAL_N:-30}
+  CORE_PBFT_GENERAL_F: ${CORE_PBFT_GENERAL_F:-9}
   CORE_PBFT_GENERAL_BATCHSIZE: ${CORE_PBFT_GENERAL_BATCHSIZE:-500}
   CORE_PBFT_GENERAL_TIMEOUT_BATCH: ${CORE_PBFT_GENERAL_TIMEOUT_BATCH:-1s}
   CORE_PBFT_GENERAL_TIMEOUT_REQUEST: ${CORE_PBFT_GENERAL_TIMEOUT_REQUEST:-24h}
@@ -28,7 +28,7 @@ x-peer-env: &peer-env
   CORE_PEER_VALIDATOR_CONSENSUS_BUFFERSIZE: ${CORE_PEER_VALIDATOR_CONSENSUS_BUFFERSIZE:-20000}
   CORE_PEER_VALIDATOR_EVENTS_BUFFERSIZE: ${CORE_PEER_VALIDATOR_EVENTS_BUFFERSIZE:-1000}
   CORE_PEER_VALIDATOR_EVENTS_TIMEOUT: ${CORE_PEER_VALIDATOR_EVENTS_TIMEOUT:-20}
-  CORE_DNS_SUBNET: ${CORE_DNS_SUBNET:-10.92.2.0/24}
+  CORE_DNS_SUBNET: ${CORE_DNS_SUBNET:-10.161.34.0/24}
 
 services:
   vp0:
@@ -70,7 +70,7 @@ services:
         condition: on-failure
       placement:
         constraints:
-          - node.hostname == ${VP0_NODE:-dns-fabric-01}
+          - node.hostname == ${VP0_NODE:-roott-I620-G20}
 
   vp1:
     <<: *peer-common
@@ -94,7 +94,7 @@ services:
         condition: on-failure
       placement:
         constraints:
-          - node.hostname == ${VP1_NODE:-dns-fabric-01}
+          - node.hostname == ${VP1_NODE:-roott-I620-G20}
 
   vp2:
     <<: *peer-common
@@ -118,7 +118,7 @@ services:
         condition: on-failure
       placement:
         constraints:
-          - node.hostname == ${VP2_NODE:-dns-fabric-01}
+          - node.hostname == ${VP2_NODE:-roott-I620-G20}
 
   vp3:
     <<: *peer-common
@@ -142,7 +142,7 @@ services:
         condition: on-failure
       placement:
         constraints:
-          - node.hostname == ${VP3_NODE:-dns-fabric-02}
+          - node.hostname == ${VP3_NODE:-roott-I620-G20}
 
   vp4:
     <<: *peer-common
@@ -166,7 +166,7 @@ services:
         condition: on-failure
       placement:
         constraints:
-          - node.hostname == ${VP4_NODE:-dns-fabric-02}
+          - node.hostname == ${VP4_NODE:-roott-I620-G20}
 
   vp5:
     <<: *peer-common
@@ -190,7 +190,7 @@ services:
         condition: on-failure
       placement:
         constraints:
-          - node.hostname == ${VP5_NODE:-dns-fabric-02}
+          - node.hostname == ${VP5_NODE:-roott-I620-G20}
 
   vp6:
     <<: *peer-common
@@ -214,7 +214,7 @@ services:
         condition: on-failure
       placement:
         constraints:
-          - node.hostname == ${VP6_NODE:-dns-fabric-03}
+          - node.hostname == ${VP6_NODE:-roott-I620-G20}
 
   vp7:
     <<: *peer-common
@@ -238,7 +238,7 @@ services:
         condition: on-failure
       placement:
         constraints:
-          - node.hostname == ${VP7_NODE:-dns-fabric-03}
+          - node.hostname == ${VP7_NODE:-roott-I620-G20}
 
   vp8:
     <<: *peer-common
@@ -262,7 +262,7 @@ services:
         condition: on-failure
       placement:
         constraints:
-          - node.hostname == ${VP8_NODE:-dns-bind-01}
+          - node.hostname == ${VP8_NODE:-roott-I620-G20}
 
   vp9:
     <<: *peer-common
@@ -286,7 +286,487 @@ services:
         condition: on-failure
       placement:
         constraints:
-          - node.hostname == ${VP9_NODE:-dns-bind-01}
+          - node.hostname == ${VP9_NODE:-roott-I620-G20}
+
+  vp10:
+    <<: *peer-common
+    hostname: vp10
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp10
+      CORE_PEER_ADDRESS: vp10:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP10_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp10-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP10_NODE:-roott-I620-G20}
+
+  vp11:
+    <<: *peer-common
+    hostname: vp11
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp11
+      CORE_PEER_ADDRESS: vp11:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP11_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp11-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP11_NODE:-roott-I620-G20}
+
+  vp12:
+    <<: *peer-common
+    hostname: vp12
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp12
+      CORE_PEER_ADDRESS: vp12:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP12_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp12-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP12_NODE:-roott-I620-G20}
+
+  vp13:
+    <<: *peer-common
+    hostname: vp13
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp13
+      CORE_PEER_ADDRESS: vp13:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP13_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp13-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP13_NODE:-roott-I620-G20}
+
+  vp14:
+    <<: *peer-common
+    hostname: vp14
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp14
+      CORE_PEER_ADDRESS: vp14:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP14_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp14-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP14_NODE:-roott-I620-G20}
+
+  vp15:
+    <<: *peer-common
+    hostname: vp15
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp15
+      CORE_PEER_ADDRESS: vp15:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP15_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp15-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP15_NODE:-qichang-I420-G20}
+
+  vp16:
+    <<: *peer-common
+    hostname: vp16
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp16
+      CORE_PEER_ADDRESS: vp16:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP16_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp16-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP16_NODE:-qichang-I420-G20}
+
+  vp17:
+    <<: *peer-common
+    hostname: vp17
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp17
+      CORE_PEER_ADDRESS: vp17:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP17_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp17-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP17_NODE:-qichang-I420-G20}
+
+  vp18:
+    <<: *peer-common
+    hostname: vp18
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp18
+      CORE_PEER_ADDRESS: vp18:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP18_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp18-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP18_NODE:-qichang-I420-G20}
+
+  vp19:
+    <<: *peer-common
+    hostname: vp19
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp19
+      CORE_PEER_ADDRESS: vp19:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP19_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp19-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP19_NODE:-qichang-I420-G20}
+
+  vp20:
+    <<: *peer-common
+    hostname: vp20
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp20
+      CORE_PEER_ADDRESS: vp20:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP20_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp20-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP20_NODE:-qichang-I420-G20}
+
+  vp21:
+    <<: *peer-common
+    hostname: vp21
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp21
+      CORE_PEER_ADDRESS: vp21:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP21_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp21-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP21_NODE:-qichang-I420-G20}
+
+  vp22:
+    <<: *peer-common
+    hostname: vp22
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp22
+      CORE_PEER_ADDRESS: vp22:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP22_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp22-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP22_NODE:-qichang-I420-G20}
+
+  vp23:
+    <<: *peer-common
+    hostname: vp23
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp23
+      CORE_PEER_ADDRESS: vp23:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP23_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp23-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP23_NODE:-qichang-I420-G20}
+
+  vp24:
+    <<: *peer-common
+    hostname: vp24
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp24
+      CORE_PEER_ADDRESS: vp24:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP24_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp24-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP24_NODE:-qichang-I420-G20}
+
+  vp25:
+    <<: *peer-common
+    hostname: vp25
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp25
+      CORE_PEER_ADDRESS: vp25:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP25_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp25-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP25_NODE:-qichang-I420-G20}
+
+  vp26:
+    <<: *peer-common
+    hostname: vp26
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp26
+      CORE_PEER_ADDRESS: vp26:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP26_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp26-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP26_NODE:-qichang-I420-G20}
+
+  vp27:
+    <<: *peer-common
+    hostname: vp27
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp27
+      CORE_PEER_ADDRESS: vp27:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP27_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp27-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP27_NODE:-qichang-I420-G20}
+
+  vp28:
+    <<: *peer-common
+    hostname: vp28
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp28
+      CORE_PEER_ADDRESS: vp28:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP28_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp28-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP28_NODE:-qichang-I420-G20}
+
+  vp29:
+    <<: *peer-common
+    hostname: vp29
+    command: /bin/sh -c "sleep ${PEER_START_DELAY:-10}; peer node start"
+    environment:
+      <<: *peer-env
+      CORE_PEER_ID: vp29
+      CORE_PEER_ADDRESS: vp29:7051
+      CORE_PEER_DISCOVERY_ROOTNODE: vp0:7051
+      CORE_PBFT_GENERAL_BYZANTINE: ${VP29_BYZANTINE:-false}
+    volumes:
+      - type: volume
+        source: vp29-data
+        target: /var/hyperledger/production
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == ${VP29_NODE:-qichang-I420-G20}
 
   bind9:
     image: ${BIND_IMAGE:-internetsystemsconsortium/bind9:9.18}
@@ -318,7 +798,7 @@ services:
         condition: on-failure
       placement:
         constraints:
-          - node.hostname == ${BIND_NODE:-dns-bind-01}
+          - node.hostname == ${BIND_NODE:-qichang-I420-G20}
 
 volumes:
   vp0-data:
@@ -331,6 +811,26 @@ volumes:
   vp7-data:
   vp8-data:
   vp9-data:
+  vp10-data:
+  vp11-data:
+  vp12-data:
+  vp13-data:
+  vp14-data:
+  vp15-data:
+  vp16-data:
+  vp17-data:
+  vp18-data:
+  vp19-data:
+  vp20-data:
+  vp21-data:
+  vp22-data:
+  vp23-data:
+  vp24-data:
+  vp25-data:
+  vp26-data:
+  vp27-data:
+  vp28-data:
+  vp29-data:
 
 networks:
   fabric:

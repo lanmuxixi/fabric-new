@@ -4,13 +4,13 @@
 
 当前设计默认假设：
 
-- 权威 DNS 节点是 `dns-bind-01`
+- 权威 DNS 节点是 `qichang-I420-G20 / 10.161.34.51`
 - zone 文件挂载到 `/var/lib/bind`
 - Fabric DNS 链码通过动态更新 / 查询直接与 Bind9 交互
 
-## 在 dns-bind-01 上安装
+## 在 Bind9 目标节点上安装
 
-在 `dns-bind-01` 上拉取当前分支代码后，执行：
+在 Bind9 目标节点上拉取当前分支代码后，执行：
 
 ```bash
 ./scripts/swarm/prepare-bind-layout.sh

@@ -1,4 +1,7 @@
-# 10 节点 Swarm 实验执行手册
+# 历史：10 节点 Swarm 实验执行手册
+
+> 注意：本文档是早期 `feature/swarm-adaptation` / 4 VM / 10 节点实验记录，保留作历史参考。
+> 当前 `feature/swarm-lab-exp1` 的实验一性能上限测试已经改为 2 台物理机、30 个诚实 PBFT peer，请使用 `deploy/swarm/LAB_EXP1_RUNBOOK.md`。
 
 本文档给出当前 `feature/swarm-adaptation` 分支在 4 台 VM 上运行时的推荐执行顺序。
 

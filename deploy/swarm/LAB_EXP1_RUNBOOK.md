@@ -1,6 +1,6 @@
-# 实验一：三服务器 Swarm 部署步骤
+# 实验一：30 节点两服务器 Swarm 部署步骤
 
-本文档对应分支 `feature/swarm-lab-exp1`，用于在学校实验室三台服务器上运行实验一基础 DNS 解析实验。
+本文档对应分支 `feature/swarm-lab-exp1`，用于在学校实验室两台服务器上运行实验一 30 节点基础 DNS 解析性能实验。实验一的物理机器布局已与实验三对齐，所有 PBFT 节点均为诚实节点。
 
 ## 1. 当前 Swarm 节点
 
@@ -9,20 +9,16 @@
 ```text
 roott-I620-G20     manager，建议对应 node7 / 10.161.34.8
 qichang-I420-G20   worker，建议对应 wdb服务器2 / 10.161.34.51
-node21             worker，10.161.34.22
 ```
 
 实验一节点分布：
 
 ```text
 roott-I620-G20:
-  vp0, vp1, vp2, vp3
+  vp0-vp14
 
 qichang-I420-G20:
-  vp4, vp5, vp6
-
-node21:
-  vp7, vp8, vp9, bind9
+  vp15-vp29, bind9
 ```
 
 ## 2. 拉取实验一分支
@@ -59,15 +55,20 @@ cp deploy/swarm/.env.lab.example deploy/swarm/.env
 
 ```bash
 CORE_DNS_SUBNET=10.161.34.0/24
+CORE_PBFT_GENERAL_N=30
+CORE_PBFT_GENERAL_F=9
 VP0_NODE=roott-I620-G20
-VP4_NODE=qichang-I420-G20
-VP7_NODE=node21
-BIND_NODE=node21
+VP14_NODE=roott-I620-G20
+VP15_NODE=qichang-I420-G20
+VP29_NODE=qichang-I420-G20
+BIND_NODE=qichang-I420-G20
 VP0_ENDPOINT=10.161.34.8:7051
-CHAINCODE_CTOR={"Function":"init","Args":["com:10.161.34.22:53","cn:10.161.34.22:53"]}
+CHAINCODE_CTOR={"Function":"init","Args":["com:10.161.34.51:53","cn:10.161.34.51:53"]}
 ```
 
-如果 `qichang-I420-G20` 的真实 IP 不是 `10.161.34.51`，实验一暂时不受影响；实验四才需要调整副本入口地址。
+`CORE_PBFT_GENERAL_F=9` 表示 30 节点 PBFT 配置最多可容忍 9 个拜占庭节点，但实验一仍然是诚实基线，`.env` 中 `VP0_BYZANTINE` 到 `VP29_BYZANTINE` 都应保持 `false`。
+
+如果 `qichang-I420-G20` 的真实 IP 不是 `10.161.34.51`，需要同步调整 `.env` 中的 `CHAINCODE_CTOR` 以及 Bind9 zone 文件中的 `ns1` 地址。
 
 ## 4. 构建并分发 peer 镜像
 
@@ -79,15 +80,14 @@ bash scripts/swarm/build-peer-image.sh
 docker images | grep fabric-dns-peer
 ```
 
-把镜像分发到两个 worker：
+把镜像分发到 worker：
 
 ```bash
 docker save fabric-dns-peer:swarm -o /tmp/fabric-dns-peer-swarm.tar
 scp /tmp/fabric-dns-peer-swarm.tar root@10.161.34.51:/tmp/
-scp /tmp/fabric-dns-peer-swarm.tar root@10.161.34.22:/tmp/
 ```
 
-在 `10.161.34.51` 和 `10.161.34.22` 上导入：
+在 `10.161.34.51` 上导入：
 
 ```bash
 docker load -i /tmp/fabric-dns-peer-swarm.tar
@@ -105,7 +105,7 @@ docker network ls | grep fabric_dns
 
 ## 6. 准备 Bind9 目录
 
-在 `node21 / 10.161.34.22` 上执行：
+在 `qichang-I420-G20 / 10.161.34.51` 上执行：
 
 ```bash
 sudo mkdir -p /opt/fabric-dns/bind/config
@@ -121,7 +121,7 @@ cd /root/go/src/github.com/hyperledger/fabric
 bash scripts/swarm/prepare-bind-layout.sh
 ```
 
-如果脚本只在 manager 本地生成 Bind9 配置，需要把 `/opt/fabric-dns/bind` 同步到 `10.161.34.22`。
+如果脚本只在 manager 本地生成 Bind9 配置，需要把 `/opt/fabric-dns/bind` 同步到 `10.161.34.51`。
 
 ## 7. 部署 Stack
 
@@ -138,9 +138,9 @@ bash scripts/swarm/deploy-stack.sh
 docker stack services fabricdns
 ```
 
-预期所有服务都是 `1/1`。
+预期 `vp0` 到 `vp29` 以及 `bind9` 共 31 个服务都为 `1/1`。
 
-## 8. 检查 10 节点 PBFT 网络
+## 8. 检查 30 节点 PBFT 网络
 
 在 manager 节点执行：
 
@@ -149,12 +149,13 @@ curl -s http://localhost:7050/network/peers | python3 -c \
   "import sys,json; peers=json.load(sys.stdin)['peers']; print(len(peers)); [print(p['ID']['name'], p['address']) for p in peers]"
 ```
 
-预期输出节点数为 `10`。
+预期输出节点数为 `30`。
 
-如果不足 10 个节点，先强制重启非 vp0 节点：
+如果不足 30 个节点，先强制重启非 vp0 节点：
 
 ```bash
-for vp in vp1 vp2 vp3 vp4 vp5 vp6 vp7 vp8 vp9; do
+for i in $(seq 1 29); do
+  vp="vp${i}"
   docker service update --force fabricdns_${vp}
 done
 ```
@@ -163,7 +164,7 @@ done
 
 ## 9. 部署 DNS 链码
 
-PBFT 网络确认 10 节点后再部署链码：
+PBFT 网络确认 30 节点后再部署链码：
 
 ```bash
 bash scripts/swarm/deploy-dns-chaincode.sh
@@ -179,8 +180,8 @@ bash scripts/swarm/query-top-levels.sh
 预期包含：
 
 ```text
-com -> 10.161.34.22:53
-cn  -> 10.161.34.22:53
+com -> 10.161.34.51:53
+cn  -> 10.161.34.51:53
 ```
 
 ## 10. 验证普通域名写入和解析
@@ -200,7 +201,7 @@ docker run --rm \
 用 Bind9 验证：
 
 ```bash
-dig @10.161.34.22 www.example.com +short
+dig @10.161.34.51 www.example.com +short
 ```
 
 预期返回：
@@ -215,10 +216,10 @@ dig @10.161.34.22 www.example.com +short
 
 ```text
 1. docker stack services fabricdns 全部 1/1
-2. /network/peers 返回 10 个节点
+2. /network/peers 返回 30 个节点
 3. deploy-dns-chaincode.sh 成功生成链码 ID
-4. query-top-levels.sh 返回 com/cn 到 10.161.34.22:53
-5. update www.example.com 后，dig @10.161.34.22 返回写入 IP
+4. query-top-levels.sh 返回 com/cn 到 10.161.34.51:53
+5. update www.example.com 后，dig @10.161.34.51 返回写入 IP
 ```
 
 实验一跑通后，再迁移实验二、实验三、实验四。
